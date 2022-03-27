@@ -10,24 +10,23 @@ function toType(luaType) {
   return luaType;
 }
 
+const opMapping = {
+  add: "LuaAdditionMethod",
+  sub: "LuaSubtractionMethod",
+  mult: "LuaMultiplicationMethod",
+  div: "LuaDivisionMethod",
+  lt: "LuaLessThanMethod",
+};
+
 function genClassOperator({ type, rhs, returns }) {
   const returnType = returns ? toType(returns) : "void";
 
-  if (type === "add") {
-    return `add: LuaAdditionMethod<${rhs}, ${returnType}>`;
+  if (opMapping[type] !== undefined) {
+    return `${type}: ${opMapping[type]}<${rhs}, ${returnType}>`;
   }
 
-  if (type === "sub") {
-    return `sub: LuaSubtractionMethod<${rhs}, ${returnType}>`;
-  }
-
-  if (type === "mult") {
-    return `mult: LuaMultiplicationMethod<${rhs}, ${returnType}>`;
-  }
-
-  if (type === "div") {
-    return `div: LuaDivisionMethod<${rhs}, ${returnType}>`;
-  }
+  console.warn(`op mappping not found: ${type}`);
+  return "";
 }
 
 function genClassMethod({ name, params, returns }) {
