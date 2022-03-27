@@ -70,14 +70,12 @@ function genTypingsCode() {
 async function buildNamespaceTypings(ns) {
   console.log(`buildNamespaceTypings() ns=${ns}`);
 
-  const files = await readdir(
-    resolve(__dirname, "..", getRepoTypesPath(`/${ns}/type`))
-  );
-
+  const root = ns === "fb" ? "/fb" : `/${ns}/type`;
+  const files = await readdir(resolve(__dirname, "..", getRepoTypesPath(root)));
   const promises = [];
 
   for (const file of files) {
-    const f = resolve(__dirname, "..", getRepoTypesPath(`/${ns}/type/${file}`));
+    const f = resolve(__dirname, "..", getRepoTypesPath(`${root}/${file}`));
     promises.push(parseFile(f));
   }
 
@@ -87,28 +85,10 @@ async function buildNamespaceTypings(ns) {
 async function buildTypes() {
   console.log("buildTypes()");
 
-  const namespaces = ["shared", "server", "client"];
+  const namespaces = ["fb", "shared", "server", "client"];
   for (const ns of namespaces) {
     await buildNamespaceTypings(ns);
   }
-
-  // const files = await readdir(
-  //   resolve(__dirname, "..", getRepoTypesPath("/shared/type"))
-  // );
-
-  // const promises = [];
-
-  // for (const file of files) {
-  //   const f = resolve(
-  //     __dirname,
-  //     "..",
-  //     getRepoTypesPath(`/shared/type/${file}`)
-  //   );
-
-  //   promises.push(parseFile(f));
-  // }
-
-  // await Promise.all(promises);
 
   genTypingsCode();
 }
