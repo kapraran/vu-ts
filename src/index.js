@@ -78,11 +78,17 @@ async function buildTypes() {
     resolve(__dirname, "..", getTypePath("/shared/type"))
   );
 
+  const promises = [];
+
   for (const file of files) {
     const f = resolve(__dirname, "..", getTypePath(`/shared/type/${file}`));
     // console.log(f);
-    await parseFile(f);
+
+    promises.push(parseFile(f));
+    // await parseFile(f);
   }
+
+  await Promise.all(promises);
 
   genTypingsCode();
 }
