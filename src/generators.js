@@ -20,20 +20,15 @@ const opMapping = {
 
 function genClass(d) {
   return `class ${d.name} {
-    ${((d.static && Object.entries(d.static)) || [])
-      .map(genStaticProperties)
-      .join("\n")}
+    ${d.static.map(genStaticProperties).join("\n")}
 
-    ${(d.properties || []).map(genClassProp).join("\n")}
+    ${d.properties.map(genClassProp).join("\n")}
 
-    ${(d.constructors || [])
-      .filter((c) => !!c)
-      .map(genClassConstructor)
-      .join("\n")}
+    ${d.constructors.map(genClassConstructor).join("\n")}
 
-    ${(d.methods || []).map(genClassMethod).join("\n")}
+    ${d.methods.map(genClassMethod).join("\n")}
 
-    ${(d.operators || []).map(genClassOperator).join("\n")}
+    ${d.operators.map(genClassOperator).join("\n")}
   }`;
 }
 
@@ -85,6 +80,14 @@ function genClassConstructor({ params }) {
   return genClassMethod({ name: "constructor", params });
 }
 
+function genEnum({ name, values }) {
+  const entries = Object.entries(values);
+
+  return `enum ${name} {
+    ${entries.map(([name, { value }]) => `${name}= ${value}`).join(", ")}
+  }`;
+}
+
 module.exports = {
   genClassMethod,
   genMethodParams,
@@ -94,4 +97,5 @@ module.exports = {
   genStaticProperties,
   genClassConstructor,
   genClass,
+  genEnum,
 };
