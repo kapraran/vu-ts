@@ -4,6 +4,11 @@ const yaml = require("js-yaml");
 const prettier = require("prettier");
 const { genClass, genEnum } = require("./generators");
 const { downloadRepo, extractRepo } = require("./repo");
+const {
+  parseTypesFile,
+  parseLibraryFile,
+  parseEventsFile,
+} = require("./parsers");
 
 const url = "https://github.com/EmulatorNexus/VU-Docs/archive/master.zip";
 const typingsDir = "typings";
@@ -16,26 +21,14 @@ const getRepoTypesPath = (p) => `${extractDir}/VU-Docs-master/types/${p}`;
 
 const symbolTable = {};
 
-function parseFileContents(yamlData) {
-  const symbolTableEntry = {
-    raw: yamlData,
-    name: yamlData.name,
-    type: yamlData.type,
-    static: Object.entries(yamlData.static || {}),
-    properties: Object.entries(yamlData.properties || {}),
-    constructors: (yamlData.constructors || []).filter((c) => !!c),
-    methods: yamlData.methods || [],
-    operators: yamlData.operators || [],
-    values: yamlData.values || [],
-  };
-
-  symbolTable[yamlData.name] = symbolTableEntry;
+async function readYamlData(filePath) {
+  const contents = await readFile(filePath, "utf8");
+  return yaml.load(contents);
 }
 
-async function parseFile(f) {
-  const contents = await readFile(f, "utf8");
-  const parsedYaml = yaml.load(contents);
-  parseFileContents(parsedYaml);
+async function parseFile(symbolTable, f, parserFunc, ns, allsymbolTable) {
+  const parsedYaml = await readYamlData(f);
+  parserFunc(symbolTable, parsedYaml, allsymbolTable, ns);
 }
 
 async function saveDeclarationFile(filePath, code) {
@@ -44,7 +37,7 @@ async function saveDeclarationFile(filePath, code) {
   await writeFile(filePath, formattedCode, "utf8");
 }
 
-function genTypingsCode() {
+function genTypingsCode(symbolTable, ns) {
   console.log("genTypingsCode()");
 
   Object.keys(symbolTable).map(async (key) => {
@@ -60,7 +53,7 @@ function genTypingsCode() {
     const outFile = resolve(
       __dirname,
       "..",
-      `${typingsDir}/globals/${d.name}.d.ts`
+      `${typingsDir}/${ns}/${d.name}.d.ts`
     );
 
     await saveDeclarationFile(outFile, code);
@@ -71,12 +64,31 @@ async function buildNamespaceTypings(ns) {
   console.log(`buildNamespaceTypings() ns=${ns}`);
 
   const root = ns === "fb" ? "/fb" : `/${ns}/type`;
-  const files = await readdir(resolve(__dirname, "..", getRepoTypesPath(root)));
+
+  const nsSymbolTable = {};
+  symbolTable[ns] = nsSymbolTable;
+
   const promises = [];
 
-  for (const file of files) {
-    const f = resolve(__dirname, "..", getRepoTypesPath(`${root}/${file}`));
-    promises.push(parseFile(f));
+  const subRoots =
+    ns === "fb"
+      ? [["", parseTypesFile]]
+      : [
+          ["type", parseTypesFile],
+          ["library", parseLibraryFile],
+          ["event", parseEventsFile],
+        ];
+
+  for (const subRoot of subRoots) {
+    const s = `/${ns}/${subRoot[0]}`;
+    const subDir = resolve(__dirname, "..", getRepoTypesPath(s));
+
+    const files = await readdir(subDir);
+
+    for (const fname of files) {
+      const f = resolve(subDir, fname);
+      promises.push(parseFile(nsSymbolTable, f, subRoot[1], ns, symbolTable));
+    }
   }
 
   await Promise.all(promises);
@@ -86,11 +98,36 @@ async function buildTypes() {
   console.log("buildTypes()");
 
   const namespaces = ["fb", "shared", "server", "client"];
+  // const namespaces = ["shared"];
   for (const ns of namespaces) {
     await buildNamespaceTypings(ns);
+    await genTypingsCode(symbolTable[ns], ns);
   }
 
-  genTypingsCode();
+  // put all together
+  const colls = [
+    ["shared", ["fb", "shared"]],
+    ["client", ["fb", "shared", "client"]],
+    ["server", ["fb", "shared", "server"]],
+  ];
+
+  for (const [name, deps] of colls) {
+    const filePath = resolve(typingsDir, `${name}.d.ts`);
+    const codeParts = {};
+
+    for (const dep of deps) {
+      const dirPath = resolve(typingsDir, dep);
+      const files = await readdir(dirPath);
+
+      for (const f of files) {
+        const ff = resolve(dirPath, f);
+        const contents = await readFile(ff, "utf8");
+        codeParts[f] = contents;
+      }
+    }
+
+    await writeFile(filePath, Object.values(codeParts).join("\n"), "utf8");
+  }
 }
 
 async function main() {

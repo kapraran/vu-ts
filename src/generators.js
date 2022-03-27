@@ -19,7 +19,7 @@ const opMapping = {
 };
 
 function genClass(d) {
-  return `class ${d.name} {
+  return `class ${d.name} ${d.inherits ? `extends ${d.inherits}` : ""} {
     ${d.static.map(genStaticProperties).join("\n")}
 
     ${d.properties.map(genClassProp).join("\n")}
@@ -56,16 +56,24 @@ function genClassMethod({ name, params, returns }) {
 function genMethodParams(params) {
   if (params === undefined) return "";
 
-  return Object.entries(params).map(genMethodParam).join(", ");
+  return params.map(genMethodParam).join(", ");
 }
 
 const replParamName = ["default", "with"];
-function genMethodParam([name, { type }]) {
+function genMethodParam([name, { type, params }]) {
   if (replParamName.includes(name)) {
     name = `_${name}`;
   }
 
+  if (type === "callable") {
+    return genCallable([name, { type, params }]);
+  }
+
   return `${name}: ${toType(type)}`;
+}
+
+function genCallable([name, { type, params }]) {
+  return `${name}: (${genMethodParams(params)}) => void`;
 }
 
 function genClassProp([name, { type, description, readOnly }]) {
@@ -77,7 +85,10 @@ function genStaticProperties([name, { type }]) {
 }
 
 function genClassConstructor({ params }) {
-  return genClassMethod({ name: "constructor", params });
+  return genClassMethod({
+    name: "constructor",
+    params: Object.entries(params || {}),
+  });
 }
 
 function genEnum({ name, values }) {
