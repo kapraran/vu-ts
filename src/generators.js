@@ -18,6 +18,25 @@ const opMapping = {
   lt: "LuaLessThanMethod",
 };
 
+function genClass(d) {
+  return `class ${d.name} {
+    ${((d.static && Object.entries(d.static)) || [])
+      .map(genStaticProperties)
+      .join("\n")}
+
+    ${(d.properties || []).map(genClassProp).join("\n")}
+
+    ${(d.constructors || [])
+      .filter((c) => !!c)
+      .map(genClassConstructor)
+      .join("\n")}
+
+    ${(d.methods || []).map(genClassMethod).join("\n")}
+
+    ${(d.operators || []).map(genClassOperator).join("\n")}
+  }`;
+}
+
 function genClassOperator({ type, rhs, returns }) {
   const returnType = returns ? toType(returns) : "void";
 
@@ -74,4 +93,5 @@ module.exports = {
   genClassOperator,
   genStaticProperties,
   genClassConstructor,
+  genClass,
 };

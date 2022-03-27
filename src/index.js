@@ -2,13 +2,7 @@ const { readFile, ensureFile, readdir, writeFile } = require("fs-extra");
 const { resolve } = require("path");
 const yaml = require("js-yaml");
 const prettier = require("prettier");
-const {
-  genClassMethod,
-  genClassProp,
-  genClassOperator,
-  genStaticProperties,
-  genClassConstructor,
-} = require("./generators");
+const { genClass } = require("./generators");
 const { downloadRepo, extractRepo } = require("./repo");
 
 const url = "https://github.com/EmulatorNexus/VU-Docs/archive/master.zip";
@@ -18,15 +12,28 @@ const cacheDir = resolve(__dirname, "../.cache");
 const dlZipFilepath = resolve(cacheDir, "master.zip");
 const extractDir = resolve(cacheDir, "extracted");
 
-const getTypePath = (p) => `${extractDir}/VU-Docs-master/types/${p}`;
+const getRepoTypesPath = (p) => `${extractDir}/VU-Docs-master/types/${p}`;
 
-const typings = {};
+const symbolTable = {};
 
 function parseFileContents(yamlData) {
-  typings[yamlData.name] = yamlData;
+  // const symbolTableEntry = {};
+
+  // symbolTableEntry.raw = yamlData;
+
+  // symbolTableEntry.name = yamlData.name;
+
+  // symbolTableEntry.static =
+  //   (yamlData.static && Object.entries(yamlData.static)) || [];
+
+  // symbolTableEntry.constructors = (yamlData.constructors || []).filter(
+  //   (c) => !!c
+  // );
+
+  symbolTable[yamlData.name] = yamlData;
 
   if (yamlData.properties) {
-    typings[yamlData.name].properties = Object.entries(yamlData.properties);
+    symbolTable[yamlData.name].properties = Object.entries(yamlData.properties);
   }
 }
 
@@ -36,37 +43,27 @@ async function parseFile(f) {
   parseFileContents(parsedYaml);
 }
 
+async function saveDeclarationFile(filePath, code) {
+  await ensureFile(filePath);
+  const formattedCode = prettier.format(code, { parser: "typescript" });
+  await writeFile(filePath, formattedCode, "utf8");
+}
+
 function genTypingsCode() {
-  console.log("gentypings");
-  Object.keys(typings).map(async (key) => {
-    const d = typings[key];
+  console.log("genTypingsCode()");
 
-    const code = `class ${d.name} {
-      ${((d.static && Object.entries(d.static)) || [])
-        .map(genStaticProperties)
-        .join("\n")}
+  Object.keys(symbolTable).map(async (key) => {
+    const d = symbolTable[key];
 
-      ${(d.properties || []).map(genClassProp).join("\n")}
-
-      ${(d.constructors || [])
-        .filter((c) => !!c)
-        .map(genClassConstructor)
-        .join("\n")}
-
-      ${(d.methods || []).map(genClassMethod).join("\n")}
-
-      ${(d.operators || []).map(genClassOperator).join("\n")}
-    }`;
+    const code = genClass(d);
 
     const outFile = resolve(
       __dirname,
       "..",
-      `${typingsDir}/types/${d.name}.d.ts`
+      `${typingsDir}/globals/${d.name}.d.ts`
     );
-    await ensureFile(outFile);
 
-    const formatCode = prettier.format(code, { parser: "typescript" });
-    await writeFile(outFile, formatCode, "utf8");
+    await saveDeclarationFile(outFile, code);
   });
 }
 
@@ -74,18 +71,19 @@ async function buildTypes() {
   console.log("buildTypes()");
 
   const files = await readdir(
-    // resolve(__dirname, "..", getTypePath("/client/library"))
-    resolve(__dirname, "..", getTypePath("/shared/type"))
+    resolve(__dirname, "..", getRepoTypesPath("/shared/type"))
   );
 
   const promises = [];
 
   for (const file of files) {
-    const f = resolve(__dirname, "..", getTypePath(`/shared/type/${file}`));
-    // console.log(f);
+    const f = resolve(
+      __dirname,
+      "..",
+      getRepoTypesPath(`/shared/type/${file}`)
+    );
 
     promises.push(parseFile(f));
-    // await parseFile(f);
   }
 
   await Promise.all(promises);
