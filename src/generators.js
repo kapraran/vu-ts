@@ -32,22 +32,45 @@ function genClass(d) {
 
     ${d.methods.map(genClassMethod).join("\n")}
 
-    ${d.operators.map(genClassOperator).join("\n")}
+    ${genClassOperators(d.operators)}
   }
 
   ${d.isLibrary ? `declare const ${d.name}: ${className}` : ""}
   `;
 }
 
+function genClassOperators(operators) {
+  if ((operators || []).length < 1) return "";
+
+  const groupByType = operators.reduce((acc, item) => {
+    if (acc[item.type] === undefined) acc[item.type] = [];
+
+    acc[item.type].push(item);
+    return acc;
+  }, {});
+
+  // TODO
+  return Object.entries(groupByType).map(genClassOperator1).join("\n");
+}
+
+function genClassOperator1([name, overloads]) {
+  const unionType = overloads
+    .map(genClassOperator)
+    .filter((o) => o !== undefined && o.trim().length > 0)
+    .join(" | ");
+
+  return unionType.length > 0 ? `${name}: ${unionType}` : "";
+}
+
 function genClassOperator({ type, rhs, returns }) {
   const returnType = returns ? toType(returns) : "void";
 
   if (opMapping[type] !== undefined) {
-    return `${type}: ${opMapping[type]}<${toType(rhs)}, ${returnType}>`;
+    return `${opMapping[type]}<${toType(rhs)}, ${returnType}>`;
   }
 
   console.warn(`op mappping not found: ${type}`);
-  return "";
+  return undefined;
 }
 
 function genClassMethod({ name, params, returns }) {
@@ -84,8 +107,10 @@ function genCallable([name, { type, params }]) {
   return `${name}: (${genMethodParams(params)}) => void`;
 }
 
-function genClassProp([name, { type, description, readOnly }]) {
-  return `${readOnly ? "readonly" : ""} ${name}: ${toType(type)}`;
+function genClassProp([name, { type, description, readOnly, nullable }]) {
+  return `${readOnly ? "readonly" : ""} ${name}: ${toType(type)} ${
+    nullable ? " | undefined" : ""
+  }`;
 }
 
 function genStaticProperties([name, { type }]) {
