@@ -1,6 +1,7 @@
 function toType(luaType) {
   if (luaType === "nil") return "undefined";
-  if (luaType === "table") return "object";
+  // if (luaType === "table") return "object";
+  if (luaType === "table") return "LuaTable";
 
   if (luaType === "int") return "number";
   if (luaType === "float") return "number";
@@ -17,6 +18,20 @@ const opMapping = {
   div: "LuaDivisionMethod",
   lt: "LuaLessThanMethod",
 };
+
+function genReturns({ type, params, nullable, array, variadic, table }) {
+  const _t = toType(type);
+  const typePart = table ? `LuaTable<number, ${_t}>` : _t;
+  const bracketsPart = array || variadic ? "[]" : "";
+  const undefinedPart = nullable ? " | undefined" : "";
+
+  return `${typePart} ${bracketsPart} ${undefinedPart}`;
+}
+
+function genTypedVar([name, returns]) {
+  const ellipsisPart = returns.variadic ? "..." : "";
+  return `${ellipsisPart}${name}: ${genReturns(returns)}`;
+}
 
 function genClass(d) {
   const className = d.isLibrary ? `__${d.name}` : d.name;
@@ -73,11 +88,7 @@ function genClassOperator({ type, rhs, returns }) {
 }
 
 function genClassMethod({ name, params, returns }) {
-  const { type, nullable, array } = returns || {};
-  const returnType = returns ? toType(type) : "void";
-  const returnPart = `: ${returnType} ${array ? "[]" : ""} ${
-    nullable ? "| undefined" : ""
-  }`;
+  const returnPart = `: ${returns ? genReturns(returns) : "void"}`;
   const hasReturnPart = name !== "constructor";
 
   return `${name}(${genMethodParams(params)}) ${
@@ -92,7 +103,10 @@ function genMethodParams(params) {
 }
 
 const replParamName = ["default", "with"];
-function genMethodParam([name, { type, params, nullable, array, variadic }]) {
+function genMethodParam([
+  name,
+  { type, params, nullable, array, variadic, table },
+]) {
   if (replParamName.includes(name)) {
     name = `_${name}`;
   }
@@ -101,22 +115,20 @@ function genMethodParam([name, { type, params, nullable, array, variadic }]) {
     return genCallable([name, { type, params }]);
   }
 
-  return `${variadic ? "..." : ""}${name}: ${toType(type)} ${
-    array || variadic ? "[]" : ""
-  } ${nullable ? " | undefined" : ""}`;
+  return genTypedVar([
+    name,
+    { type, params, nullable, array, variadic, table },
+  ]);
 }
 
 function genCallable([name, { type, params }]) {
   return `${name}: (${genMethodParams(params)}) => void`;
 }
 
-function genClassProp([
-  name,
-  { type, description, readOnly, nullable, array },
-]) {
-  return `${readOnly ? "readonly" : ""} ${name}: ${toType(type)} ${
-    array ? "[]" : ""
-  } ${nullable ? " | undefined" : ""}`;
+function genClassProp([name, returns]) {
+  return `${returns.readOnly ? "readonly" : ""} ${name}: ${genReturns(
+    returns
+  )}`;
 }
 
 function genStaticProperties([name, { type }]) {
