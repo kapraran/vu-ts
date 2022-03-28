@@ -19,7 +19,11 @@ const opMapping = {
 };
 
 function genClass(d) {
-  return `class ${d.name} ${d.inherits ? `extends ${d.inherits}` : ""} {
+  const className = d.isLibrary ? `__${d.name}` : d.name;
+
+  return `declare class ${className} ${
+    d.inherits ? `extends ${d.inherits}` : ""
+  } {
     ${d.static.map(genStaticProperties).join("\n")}
 
     ${d.properties.map(genClassProp).join("\n")}
@@ -29,14 +33,17 @@ function genClass(d) {
     ${d.methods.map(genClassMethod).join("\n")}
 
     ${d.operators.map(genClassOperator).join("\n")}
-  }`;
+  }
+
+  ${d.isLibrary ? `declare const ${d.name}: ${className}` : ""}
+  `;
 }
 
 function genClassOperator({ type, rhs, returns }) {
   const returnType = returns ? toType(returns) : "void";
 
   if (opMapping[type] !== undefined) {
-    return `${type}: ${opMapping[type]}<${rhs}, ${returnType}>`;
+    return `${type}: ${opMapping[type]}<${toType(rhs)}, ${returnType}>`;
   }
 
   console.warn(`op mappping not found: ${type}`);
@@ -44,8 +51,9 @@ function genClassOperator({ type, rhs, returns }) {
 }
 
 function genClassMethod({ name, params, returns }) {
-  const returnType = returns ? toType(returns.type) : "void";
-  const returnPart = `: ${returnType}`;
+  const { type, nullable } = returns || {};
+  const returnType = returns ? toType(type) : "void";
+  const returnPart = `: ${returnType} ${nullable ? "| undefined" : ""}`;
   const hasReturnPart = name !== "constructor";
 
   return `${name}(${genMethodParams(params)}) ${
@@ -94,7 +102,7 @@ function genClassConstructor({ params }) {
 function genEnum({ name, values }) {
   const entries = Object.entries(values);
 
-  return `enum ${name} {
+  return `declare enum ${name} {
     ${entries.map(([name, { value }]) => `${name}= ${value}`).join(", ")}
   }`;
 }

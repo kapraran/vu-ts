@@ -1,12 +1,10 @@
 function parseHooksFile(yamlData) {}
 
 function parseTypesFile(symbolTable, yamlData) {
-  parseClassFile(symbolTable, yamlData);
+  return parseClassFile(symbolTable, yamlData);
 }
 
 function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
-  console.log("parseEventsFile()");
-
   let symbolTableEntry = symbolTable["Events"];
   if (!symbolTableEntry) {
     symbolTableEntry = JSON.parse(
@@ -14,9 +12,6 @@ function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
     );
     symbolTable["Events"] = symbolTableEntry;
   }
-
-  // console.log(symbolTableEntry.methods[0].params);
-  // console.log(yamlData);
 
   symbolTableEntry.methods.push({
     name: "Subscribe",
@@ -32,7 +27,8 @@ function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
 }
 
 function parseLibraryFile(symbolTable, yamlData) {
-  parseClassFile(symbolTable, yamlData);
+  yamlData.isLibrary = true;
+  return parseClassFile(symbolTable, yamlData);
 }
 
 function parseClassFile(symbolTable, yamlData) {
@@ -40,6 +36,7 @@ function parseClassFile(symbolTable, yamlData) {
     raw: yamlData,
     name: yamlData.name,
     type: yamlData.type,
+    isLibrary: !!yamlData.isLibrary,
     inherits: yamlData.inherits,
     static: Object.entries(yamlData.static || {}),
     properties: Object.entries(yamlData.properties || {}),
