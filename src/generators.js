@@ -49,7 +49,6 @@ function genClassOperators(operators) {
     return acc;
   }, {});
 
-  // TODO
   return Object.entries(groupByType).map(genClassOperator1).join("\n");
 }
 
@@ -74,9 +73,11 @@ function genClassOperator({ type, rhs, returns }) {
 }
 
 function genClassMethod({ name, params, returns }) {
-  const { type, nullable } = returns || {};
+  const { type, nullable, array } = returns || {};
   const returnType = returns ? toType(type) : "void";
-  const returnPart = `: ${returnType} ${nullable ? "| undefined" : ""}`;
+  const returnPart = `: ${returnType} ${array ? "[]" : ""} ${
+    nullable ? "| undefined" : ""
+  }`;
   const hasReturnPart = name !== "constructor";
 
   return `${name}(${genMethodParams(params)}) ${
@@ -91,7 +92,7 @@ function genMethodParams(params) {
 }
 
 const replParamName = ["default", "with"];
-function genMethodParam([name, { type, params }]) {
+function genMethodParam([name, { type, params, nullable, array, variadic }]) {
   if (replParamName.includes(name)) {
     name = `_${name}`;
   }
@@ -100,17 +101,22 @@ function genMethodParam([name, { type, params }]) {
     return genCallable([name, { type, params }]);
   }
 
-  return `${name}: ${toType(type)}`;
+  return `${variadic ? "..." : ""}${name}: ${toType(type)} ${
+    array || variadic ? "[]" : ""
+  } ${nullable ? " | undefined" : ""}`;
 }
 
 function genCallable([name, { type, params }]) {
   return `${name}: (${genMethodParams(params)}) => void`;
 }
 
-function genClassProp([name, { type, description, readOnly, nullable }]) {
+function genClassProp([
+  name,
+  { type, description, readOnly, nullable, array },
+]) {
   return `${readOnly ? "readonly" : ""} ${name}: ${toType(type)} ${
-    nullable ? " | undefined" : ""
-  }`;
+    array ? "[]" : ""
+  } ${nullable ? " | undefined" : ""}`;
 }
 
 function genStaticProperties([name, { type }]) {
