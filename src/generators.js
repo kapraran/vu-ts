@@ -1,7 +1,7 @@
 function toType(luaType) {
   if (luaType === "nil") return "undefined";
   // if (luaType === "table") return "object";
-  if (luaType === "table") return "LuaTable";
+  if (luaType === "table") return "{}";
 
   if (luaType === "int") return "number";
   if (luaType === "float") return "number";
@@ -19,18 +19,24 @@ const opMapping = {
   lt: "LuaLessThanMethod",
 };
 
-function genReturns({ type, params, nullable, array, variadic, table }) {
+function genReturns(
+  { type, readOnly, nullable, array, variadic, table },
+  ignoreReadOnly = true
+) {
+  const readOnlyPart = readOnly && !ignoreReadOnly ? "readonly" : "";
   const _t = toType(type);
   const typePart = table ? `LuaTable<number, ${_t}>` : _t;
   const bracketsPart = array || variadic ? "[]" : "";
-  const undefinedPart = nullable ? " | undefined" : "";
 
-  return `${typePart} ${bracketsPart} ${undefinedPart}`;
+  const types = [`${typePart}${bracketsPart}`];
+  if (nullable) types.push("undefined");
+
+  return `${readOnlyPart} ${types.join(" | ")}`.trim();
 }
 
 function genTypedVar([name, returns]) {
   const ellipsisPart = returns.variadic ? "..." : "";
-  return `${ellipsisPart}${name}: ${genReturns(returns)}`;
+  return `${ellipsisPart}${name}: ${genReturns(returns, false)}`;
 }
 
 function genClass(d) {
@@ -105,7 +111,7 @@ function genMethodParams(params) {
 const replParamName = ["default", "with"];
 function genMethodParam([
   name,
-  { type, params, nullable, array, variadic, table },
+  { type, params, nullable, array, variadic, table, readOnly },
 ]) {
   if (replParamName.includes(name)) {
     name = `_${name}`;

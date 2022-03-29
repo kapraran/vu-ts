@@ -8,6 +8,7 @@ const {
   parseTypesFile,
   parseLibraryFile,
   parseEventsFile,
+  parseHooksFile,
 } = require("./parsers");
 
 const url = "https://github.com/EmulatorNexus/VU-Docs/archive/master.zip";
@@ -77,6 +78,7 @@ async function buildNamespaceTypings(ns) {
           ["type", parseTypesFile],
           ["library", parseLibraryFile],
           ["event", parseEventsFile],
+          ["hook", parseHooksFile],
         ];
 
   for (const subRoot of subRoots) {

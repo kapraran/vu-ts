@@ -1,4 +1,43 @@
-function parseHooksFile(yamlData) {}
+function parseHooksFile(symbolTable, yamlData, globalSymbolTable, ns) {
+  // console.log("hooksfile");
+  // console.log(yamlData);
+
+  const cname = "Hooks";
+
+  let symbolTableEntry = symbolTable[cname];
+  if (!symbolTableEntry) {
+    symbolTableEntry = JSON.parse(
+      JSON.stringify(globalSymbolTable.shared[cname])
+    );
+    symbolTable[cname] = symbolTableEntry;
+  }
+
+  const __params = [
+    ["hook", { type: "HookContext" }],
+    ...Object.entries(yamlData.params || {}),
+  ];
+
+  symbolTableEntry.methods.push({
+    name: "Install",
+    params: [
+      ["hookName", { type: `"${yamlData.name}"` }],
+      ["priority", { type: "number" }],
+      ["callback", { type: "callable", params: __params }],
+    ],
+    returns: { type: "boolean" },
+  });
+
+  symbolTableEntry.methods.push({
+    name: "Install",
+    params: [
+      ["hookName", { type: `"${yamlData.name}"` }],
+      ["priority", { type: "number" }],
+      ["context", { type: "any" }],
+      ["callback", { type: "callable", params: __params }],
+    ],
+    returns: { type: "boolean" },
+  });
+}
 
 function parseTypesFile(symbolTable, yamlData) {
   return parseClassFile(symbolTable, yamlData);
@@ -17,6 +56,19 @@ function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
     name: "Subscribe",
     params: [
       ["eventName", { type: `"${yamlData.name}"` }],
+      [
+        "callback",
+        { type: "callable", params: Object.entries(yamlData.params || {}) },
+      ],
+    ],
+    returns: { type: "Event" },
+  });
+
+  symbolTableEntry.methods.push({
+    name: "Subscribe",
+    params: [
+      ["eventName", { type: `"${yamlData.name}"` }],
+      ["context", { type: "any" }],
       [
         "callback",
         { type: "callable", params: Object.entries(yamlData.params || {}) },
