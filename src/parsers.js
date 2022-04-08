@@ -46,6 +46,11 @@ function parseTypesFile(symbolTable, yamlData) {
 function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
   let symbolTableEntry = symbolTable["Events"];
   if (!symbolTableEntry) {
+    if (globalSymbolTable.shared["Events"].methods[0].name == "Subscribe") {
+      globalSymbolTable.shared["Events"].methods =
+        globalSymbolTable.shared["Events"].methods.slice(2);
+    }
+
     symbolTableEntry = JSON.parse(
       JSON.stringify(globalSymbolTable.shared["Events"])
     );
@@ -65,13 +70,38 @@ function parseEventsFile(symbolTable, yamlData, globalSymbolTable, ns) {
   });
 
   symbolTableEntry.methods.push({
-    name: "Subscribe",
+    name: "Subscribe<T>",
     params: [
       ["eventName", { type: `"${yamlData.name}"` }],
-      ["context", { type: "any" }],
+      ["context", { type: "T" }],
       [
         "callback",
-        { type: "callable", params: Object.entries(yamlData.params || {}) },
+        {
+          type: "callable",
+          params: [
+            ["this", { type: "T" }],
+            ...Object.entries(yamlData.params || {}),
+          ],
+        },
+      ],
+    ],
+    returns: { type: "Event" },
+  });
+
+  symbolTableEntry.methods.push({
+    name: "Subscribe<T>",
+    params: [
+      ["eventName", { type: `"${yamlData.name}"` }],
+      ["context", { type: "T" }],
+      [
+        "callback",
+        {
+          type: "callable",
+          params: [
+            ["context", { type: "T" }],
+            ...Object.entries(yamlData.params || {}),
+          ],
+        },
       ],
     ],
     returns: { type: "Event" },
