@@ -20,6 +20,6 @@
     "start": "node src/index.js",
     "ts": "tsup src-ts/test-ts.ts & node dist/test-ts.js",
     "ts2": "tsup src-ts/index.ts & node dist/index.js",
-    "dev": "npx nodemon --exec \"yarn ts2\""
+    "dev": "npx watch \"yarn ts2\" ./src-ts"
   }
 }

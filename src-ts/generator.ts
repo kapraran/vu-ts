@@ -1,10 +1,14 @@
+import { Method } from "got/dist/source";
 import prettier from "prettier";
 import {
+  CleanConstructor,
+  CleanMethod,
   CleanYamlData,
   Constructor,
   ExtParam,
   ExtProp,
   ExtValueType,
+  ReturnType,
   ValueType,
 } from "./parser";
 
@@ -31,9 +35,14 @@ export function generateClass(data: CleanYamlData) {
   ${generateInlineComment(data.description)}
   class ${data.name} ${data.inherits ? `extends ${data.inherits}` : ""} {
     ${generateClassStatic(data.static)}
+
     ${generateClassValues(data.values)}
+    
     ${generateClassProperties(data.properties)}
+    
     ${generateClassConstructors(data.constructors)}
+
+    ${generateClassMethods(data.methods)}
   }
   `;
 
@@ -50,7 +59,7 @@ export function generateClassProperties(props: ExtProp[]) {
 
 export function generateClassProperty(prop: ExtProp) {
   const propType = [
-    `${prop.type}${prop.array ? "[]" : ""}`,
+    `${toTypescriptType(prop.type)}${prop.array ? "[]" : ""}`,
     prop.nullable ? "null" : undefined,
   ]
     .filter((type) => !!type)
@@ -63,14 +72,74 @@ export function generateClassProperty(prop: ExtProp) {
   ];
 }
 
-export function generateClassMethodParameter() {}
+export function generateClassMethodParameter(param: ExtParam) {
+  return `${param.variadic ? "..." : ""}${param.name}: ${toTypescriptType(
+    param.type
+  )}${param.table ? "[]" : ""}${param.nullable ? " | undefined" : ""}${
+    param.default ? ` = ${param.default}` : ""
+  }`;
+}
 
-export function generateClassMethodParameters() {}
+export function generateClassMethodParameters(params?: ExtParam[]) {
+  if (params === undefined) return "";
 
-export function generateClassMethod() {}
+  return params
+    .flatMap((param) => generateClassMethodParameter(param))
+    .filter((line) => !!line)
+    .join(", ");
+}
 
-export function generateClassConstructors(constructors: Constructor[]) {
-  return "";
+export function generateClassMethods(methods?: CleanMethod[]) {
+  if (methods === undefined) return "";
+
+  return methods
+    .flatMap((method) => generateClassMethod(method))
+    .filter((line) => !!line)
+    .join("\n");
+}
+
+export function generateClassMethod(method: CleanMethod) {
+  const returns = generateClassMethodReturns(method.returns);
+
+  return `
+  
+  ${generateInlineComment(method.description)}
+  ${method.name}(${generateClassMethodParameters(method.params)}) ${
+    returns ? `: ${returns}` : ""
+  };
+  
+  `;
+}
+
+function generateClassMethodReturns(returns: ReturnType[]) {
+  if (returns.length === 0) return undefined;
+
+  if (returns.length > 1) console.warn("only supports 1 return value");
+
+  const singleReturn = returns[0];
+
+  return `${toTypescriptType(singleReturn.type)}${
+    singleReturn.table ? "[]" : ""
+  }${singleReturn.nullable ? " | null" : ""}`;
+}
+
+export function generateClassConstructors(constructors: CleanConstructor[]) {
+  return constructors
+    .flatMap((constructor) => generateClassConstructor(constructor))
+    .filter((line) => !!line)
+    .join("\n");
+}
+
+export function generateClassConstructor(constructor: CleanConstructor) {
+  if (constructor === null) {
+    console.warn("null constructor!");
+    return "";
+  }
+
+  return [
+    generateInlineComment(constructor.description),
+    `constructor(${generateClassMethodParameters(constructor.params)});`,
+  ];
 }
 
 export function generateClassValues(values: ExtValueType[]) {

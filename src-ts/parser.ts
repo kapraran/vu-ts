@@ -46,7 +46,7 @@ type Prop = {
 export type ExtProp = Omit<Prop & { name: string }, "readonly">;
 
 // done
-type ReturnType = {
+export type ReturnType = {
   type: string;
   description?: string;
   table?: boolean;
@@ -71,6 +71,11 @@ export type Constructor = {
   description?: string;
 };
 
+export type CleanConstructor = {
+  description?: string;
+  params: ExtParam[];
+};
+
 // done
 type Method = {
   name: string;
@@ -79,7 +84,7 @@ type Method = {
   returns?: ReturnType | ReturnType[];
 };
 
-type CleanMethod = {
+export type CleanMethod = {
   name: string;
   description?: string;
   params: ExtParam[];
@@ -119,7 +124,7 @@ export type CleanYamlData = {
   type: string;
   description?: string; // gen
   inherits?: string; // gen
-  constructors: Constructor[];
+  constructors: CleanConstructor[];
   properties: ExtProp[];
   static: ExtParam[];
   operators: OperatorType[];
@@ -135,8 +140,20 @@ const cc = new Counter();
 
 export function parseTypeFile(data: YamlData): CleanYamlData {
   const constructors = (data.constructors || []).filter(
-    (c) => c == null
+    (c) => c !== null
   ) as Constructor[];
+
+  const cleanConstructors = constructors.map<CleanConstructor>((c) => {
+    return {
+      description: c.description,
+      params: Object.entries(c.params || {}).map(([key, value]) => {
+        return {
+          ...value,
+          name: key,
+        };
+      }),
+    };
+  });
 
   const properties = Object.entries(data.properties || {}).map<ExtProp>(
     ([name, prop]) => {
@@ -193,7 +210,7 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
     type: data.type,
     description: data.description,
     inherits: data.inherits,
-    constructors,
+    constructors: cleanConstructors,
     properties,
     operators: data.operators || [],
     values,

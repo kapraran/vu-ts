@@ -42,12 +42,16 @@ async function buildTypes(docsDir: string) {
       if (cleanData.type === "class") code = generateClass(cleanData);
       if (cleanData.type === "enum") code = generateEnum(cleanData);
 
+      console.log(code)
+
       // if (code.length > 0) {
       //   const p2 = p.replace(".yaml", ".d.ts");
       //   await writeFile(p2, code, "utf8");
       // }
     }
   }
+
+  console.log('the-end')
 }
 
 async function main() {
