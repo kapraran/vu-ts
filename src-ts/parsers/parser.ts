@@ -273,4 +273,43 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
   });
 }
 
-export function parseLibraryFile(data: any): any {}
+export type LibraryFileYaml = {
+  name: string;
+  type: string;
+  methods: Method[];
+};
+
+export function parseLibraryFile(data: LibraryFileYaml): CleanYamlData {
+  const methods = (data.methods || []).map<CleanMethod>((m) => {
+    const returns = (Array.isArray(m.returns) ? m.returns : [m.returns]).filter(
+      (s) => !!s
+    ) as ReturnType[];
+
+    const params = Object.entries(m.params || {}).map<ExtParam>(
+      ([name, value]) => {
+        return {
+          name,
+          ...value,
+        };
+      }
+    );
+
+    return {
+      name: m.name,
+      description: m.description,
+      params,
+      returns,
+    };
+  });
+
+  return {
+    name: data.name,
+    type: data.type,
+    constructors: [],
+    properties: [],
+    operators: [],
+    values: [],
+    static: [],
+    methods,
+  };
+}

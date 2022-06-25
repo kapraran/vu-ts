@@ -7,8 +7,18 @@ import { downloadRepo, extractRepo } from "./repo";
 import { resolve } from "path";
 import { readdir, readFile, writeFile } from "fs-extra";
 import yaml from "js-yaml";
-import { CleanYamlData, parseTypeFile, YamlData } from "./parsers/parser";
-import { generateClass, generateEnum } from "./generators/generator";
+import {
+  CleanYamlData,
+  LibraryFileYaml,
+  parseLibraryFile,
+  parseTypeFile,
+  YamlData,
+} from "./parsers/parser";
+import {
+  generateClass,
+  generateEnum,
+  generateLibrary,
+} from "./generators/generator";
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");
@@ -26,7 +36,8 @@ async function buildTypes(docsDir: string) {
   // const docsFilepaths = await getAllDocsFilepaths(docsDir);
   // console.log("TODO buildTypes()");
 
-  const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
+  // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
+  const typeDirs = ["client/library", "server/library", "shared/library"];
   // const typeDirs = ["server/type"];
 
   const results: BuildResult[] = [];
@@ -44,16 +55,30 @@ async function buildTypes(docsDir: string) {
 
       const data = await readYamlData(p);
 
-      const cleanData = parseTypeFile(data);
+      let cleanData: CleanYamlData = {
+        name: data.name,
+        type: data.type,
+        constructors: [],
+        properties: [],
+        operators: [],
+        values: [],
+        static: [],
+        methods: [],
+      };
+
+      if (data?.type === "class") cleanData = parseTypeFile(data);
+      if (data?.type === "enum") cleanData = parseTypeFile(data);
+      if (data?.type === "library")
+        cleanData = parseLibraryFile(data as LibraryFileYaml);
 
       let code = "";
       if (cleanData.type === "class") code = generateClass(cleanData);
       if (cleanData.type === "enum") code = generateEnum(cleanData);
-      if (cleanData.type === "library") code = "";
+      if (cleanData.type === "library") code = generateLibrary(cleanData);
       if (cleanData.type === "event") code = "";
       if (cleanData.type === "hook") code = "";
 
-      // console.log(code);
+      console.log(code);
 
       if (code.length > 0) {
         const result: BuildResult = {

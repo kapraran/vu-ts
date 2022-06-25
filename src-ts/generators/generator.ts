@@ -16,7 +16,7 @@ const opMapping = {
 };
 
 function replaceNotAllowedNames(name: string) {
-  if (name === "with") {
+  if (["with", "default"].includes(name)) {
     return `_${name}`;
   }
 
@@ -106,22 +106,30 @@ export function generateClassMethodParameters(params?: ExtParam[]) {
     .join(", ");
 }
 
-export function generateClassMethods(methods?: CleanMethod[]) {
+export function generateClassMethods(
+  methods?: CleanMethod[],
+  isExpFuncs: boolean = false
+) {
   if (methods === undefined) return "";
 
   return methods
-    .flatMap((method) => generateClassMethod(method))
+    .flatMap((method) => generateClassMethod(method, isExpFuncs))
     .filter((line) => !!line)
     .join("\n");
 }
 
-export function generateClassMethod(method: CleanMethod) {
+export function generateClassMethod(
+  method: CleanMethod,
+  isExpFunc: boolean = false
+) {
   const returns = generateClassMethodReturns(method.returns);
 
   return `
   
   ${generateInlineComment(method.description)}
-  ${method.name}(${generateClassMethodParameters(method.params)}) ${
+  ${isExpFunc ? "export function " : ""}${
+    method.name
+  }(${generateClassMethodParameters(method.params)}) ${
     returns ? `: ${returns}` : ""
   };
   
@@ -193,6 +201,18 @@ export function generateEnum(data: CleanYamlData) {
       ",\n"
     )}
   }
+  `;
+
+  return prettier.format(code, { parser: "typescript" });
+}
+
+export function generateLibrary(data: CleanYamlData) {
+  const code = `
+  
+  declare namespace ${data.name} {
+    ${generateClassMethods(data.methods, true)}
+  }
+
   `;
 
   return prettier.format(code, { parser: "typescript" });
