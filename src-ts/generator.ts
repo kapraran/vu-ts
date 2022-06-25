@@ -3,6 +3,7 @@ import {
   CleanYamlData,
   Constructor,
   ExtParam,
+  ExtProp,
   ExtValueType,
   ValueType,
 } from "./parser";
@@ -29,16 +30,38 @@ export function generateClass(data: CleanYamlData) {
   const code = `
   ${generateInlineComment(data.description)}
   class ${data.name} ${data.inherits ? `extends ${data.inherits}` : ""} {
-    ${generateClassConstructors(data.constructors)}
-    ${generateClassValues(data.values)}
     ${generateClassStatic(data.static)}
+    ${generateClassValues(data.values)}
+    ${generateClassProperties(data.properties)}
+    ${generateClassConstructors(data.constructors)}
   }
   `;
 
   return prettier.format(code, { parser: "typescript" });
 }
 
-export function generateClassProperty() {}
+export function generateClassProperties(props: ExtProp[]) {
+  return props
+    .map((p) => generateClassProperty(p))
+    .flat()
+    .filter((line) => !!line)
+    .join("\n");
+}
+
+export function generateClassProperty(prop: ExtProp) {
+  const propType = [
+    `${prop.type}${prop.array ? "[]" : ""}`,
+    prop.nullable ? "null" : undefined,
+  ]
+    .filter((type) => !!type)
+    .join("|");
+  const mods = [prop.readOnly ? "readonly" : ""].join(" ");
+
+  return [
+    generateInlineComment(prop.description),
+    `${mods} ${prop.name}: ${propType}`,
+  ];
+}
 
 export function generateClassMethodParameter() {}
 

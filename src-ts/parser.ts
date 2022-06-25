@@ -43,7 +43,7 @@ type Prop = {
   nestedTable?: boolean;
 };
 
-type ExtProp = Omit<Prop & { name: string }, "readonly">;
+export type ExtProp = Omit<Prop & { name: string }, "readonly">;
 
 // done
 type ReturnType = {

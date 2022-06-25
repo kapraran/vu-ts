@@ -42,10 +42,10 @@ async function buildTypes(docsDir: string) {
       if (cleanData.type === "class") code = generateClass(cleanData);
       if (cleanData.type === "enum") code = generateEnum(cleanData);
 
-      if (code.length > 0) {
-        const p2 = p.replace(".yaml", ".d.ts");
-        await writeFile(p2, code, "utf8");
-      }
+      // if (code.length > 0) {
+      //   const p2 = p.replace(".yaml", ".d.ts");
+      //   await writeFile(p2, code, "utf8");
+      // }
     }
   }
 }
