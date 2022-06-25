@@ -124,7 +124,7 @@ export type CleanYamlData = {
   type: string;
   description?: string; // gen
   inherits?: string; // gen
-  constructors: CleanConstructor[];
+  constructors: CleanMethod[];
   properties: ExtProp[];
   static: ExtParam[];
   operators: OperatorType[];
@@ -143,8 +143,9 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
     (c) => c !== null
   ) as Constructor[];
 
-  const cleanConstructors = constructors.map<CleanConstructor>((c) => {
+  const cleanConstructors = constructors.map<CleanMethod>((c) => {
     return {
+      name: "constructor",
       description: c.description,
       params: Object.entries(c.params || {}).map(([key, value]) => {
         return {
@@ -152,6 +153,7 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
           name: key,
         };
       }),
+      returns: [],
     };
   });
 

@@ -1,4 +1,3 @@
-import { CleanYamlData, parseTypeFile, YamlData } from "./parser";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
@@ -8,7 +7,8 @@ import { downloadRepo, extractRepo } from "./repo";
 import { resolve } from "path";
 import { readdir, readFile, writeFile } from "fs-extra";
 import yaml from "js-yaml";
-import { generateClass, generateEnum } from "./generator";
+import { CleanYamlData, parseTypeFile, YamlData } from "./parsers/parser";
+import { generateClass, generateEnum } from "./generators/generator";
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");

@@ -1,14 +1,13 @@
 import { Method } from "got/dist/source";
 import prettier from "prettier";
 import {
-  CleanConstructor,
   CleanMethod,
   CleanYamlData,
   ExtParam,
   ExtProp,
   ExtValueType,
   ReturnType,
-} from "./parser";
+} from "../parsers/parser";
 
 const opMapping = {
   add: "LuaAdditionMethod",
@@ -40,7 +39,7 @@ export function generateClass(data: CleanYamlData) {
     
     ${generateClassProperties(data.properties)}
     
-    ${generateClassConstructors(data.constructors)}
+    ${generateClassMethods(data.constructors)}
 
     ${generateClassMethods(data.methods)}
   }
@@ -122,24 +121,24 @@ function generateClassMethodReturns(returns: ReturnType[]) {
   }${singleReturn.nullable ? " | null" : ""}`;
 }
 
-export function generateClassConstructors(constructors: CleanConstructor[]) {
-  return constructors
-    .flatMap((constructor) => generateClassConstructor(constructor))
-    .filter((line) => !!line)
-    .join("\n");
-}
+// export function generateClassConstructors(constructors: CleanConstructor[]) {
+//   return constructors
+//     .flatMap((constructor) => generateClassConstructor(constructor))
+//     .filter((line) => !!line)
+//     .join("\n");
+// }
 
-export function generateClassConstructor(constructor: CleanConstructor) {
-  if (constructor === null) {
-    console.warn("null constructor!");
-    return "";
-  }
+// export function generateClassConstructor(constructor: CleanConstructor) {
+//   if (constructor === null) {
+//     console.warn("null constructor!");
+//     return "";
+//   }
 
-  return [
-    generateInlineComment(constructor.description),
-    `constructor(${generateClassMethodParameters(constructor.params)});`,
-  ];
-}
+//   return [
+//     generateInlineComment(constructor.description),
+//     `constructor(${generateClassMethodParameters(constructor.params)});`,
+//   ];
+// }
 
 export function generateClassValues(values: ExtValueType[]) {
   return values
