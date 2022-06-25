@@ -1,4 +1,4 @@
-import { parseTypeFile, YamlData } from "./parser";
+import { CleanYamlData, parseTypeFile, YamlData } from "./parser";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
@@ -15,6 +15,12 @@ async function readYamlData(filePath: string) {
   return yaml.load(contents) as YamlData;
 }
 
+type BuildResult = {
+  path: string;
+  parseResult: CleanYamlData;
+  source: string;
+};
+
 async function buildTypes(docsDir: string) {
   // get list of all yaml files
   // const docsFilepaths = await getAllDocsFilepaths(docsDir);
@@ -22,6 +28,8 @@ async function buildTypes(docsDir: string) {
 
   // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
   const typeDirs = ["server/type"];
+
+  const results: BuildResult[] = [];
 
   for (const typeDir of typeDirs) {
     const parentDir = resolve(
@@ -41,17 +49,27 @@ async function buildTypes(docsDir: string) {
       let code = "";
       if (cleanData.type === "class") code = generateClass(cleanData);
       if (cleanData.type === "enum") code = generateEnum(cleanData);
+      if (cleanData.type === "library") code = "";
+      if (cleanData.type === "event") code = "";
+      if (cleanData.type === "hook") code = "";
 
-      console.log(code)
+      console.log(code);
 
-      // if (code.length > 0) {
-      //   const p2 = p.replace(".yaml", ".d.ts");
-      //   await writeFile(p2, code, "utf8");
-      // }
+      if (code.length > 0) {
+        const result: BuildResult = {
+          path: p,
+          parseResult: cleanData,
+          source: code,
+        };
+
+        results.push(result);
+      } else {
+        console.warn(`${p} did not generate any code`);
+      }
     }
   }
 
-  console.log('the-end')
+  console.log("the-end");
 }
 
 async function main() {

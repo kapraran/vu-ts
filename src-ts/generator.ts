@@ -4,12 +4,10 @@ import {
   CleanConstructor,
   CleanMethod,
   CleanYamlData,
-  Constructor,
   ExtParam,
   ExtProp,
   ExtValueType,
   ReturnType,
-  ValueType,
 } from "./parser";
 
 const opMapping = {
@@ -33,7 +31,9 @@ function toTypescriptType(luaType: string) {
 export function generateClass(data: CleanYamlData) {
   const code = `
   ${generateInlineComment(data.description)}
-  class ${data.name} ${data.inherits ? `extends ${data.inherits}` : ""} {
+  declare class ${data.name} ${
+    data.inherits ? `extends ${data.inherits}` : ""
+  } {
     ${generateClassStatic(data.static)}
 
     ${generateClassValues(data.values)}
@@ -51,8 +51,7 @@ export function generateClass(data: CleanYamlData) {
 
 export function generateClassProperties(props: ExtProp[]) {
   return props
-    .map((p) => generateClassProperty(p))
-    .flat()
+    .flatMap((p) => generateClassProperty(p))
     .filter((line) => !!line)
     .join("\n");
 }
@@ -170,7 +169,7 @@ function generateInlineComment(comment?: string) {
 export function generateEnum(data: CleanYamlData) {
   const code = `
   ${generateInlineComment(data.description)}
-  enum ${data.name} {
+  declare enum ${data.name} {
     ${data.values
       .map((v) => [
         generateInlineComment(v.description),
