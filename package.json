@@ -3,18 +3,18 @@
     "@tyriar/fibonacci-heap": "^2.0.9",
     "adm-zip": "^0.5.9",
     "dsa-ts": "^2.14.0",
-    "fs-extra": "^10.0.1",
-    "got": "11",
+    "fs-extra": "^10.1.0",
+    "got": "11.8.5",
     "js-yaml": "^4.1.0",
     "prettier": "^2.6.1",
     "typescript": "^4.6.3"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.4.34",
+    "@types/adm-zip": "^0.5.0",
     "@types/fs-extra": "^9.0.13",
     "@types/got": "^9.6.12",
     "@types/js-yaml": "^4.0.5",
-    "tsup": "^5.12.4"
+    "tsup": "^6.1.2"
   },
   "scripts": {
     "start": "node src/index.js",

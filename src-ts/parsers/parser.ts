@@ -139,9 +139,9 @@ export type CleanYamlData = {
   methods: CleanMethod[];
 };
 
-export function parseHooksFile() {}
+export function parseHookFile() {}
 
-export function parseEventsFile() {}
+export function parseEventFile() {}
 
 const cc = new Counter();
 
@@ -273,4 +273,4 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
   });
 }
 
-export function parseLibraryFile() {}
+export function parseLibraryFile(data: any): any {}

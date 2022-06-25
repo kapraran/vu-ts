@@ -53,7 +53,7 @@ async function buildTypes(docsDir: string) {
       if (cleanData.type === "event") code = "";
       if (cleanData.type === "hook") code = "";
 
-      console.log(code);
+      // console.log(code);
 
       if (code.length > 0) {
         const result: BuildResult = {
