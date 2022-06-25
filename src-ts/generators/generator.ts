@@ -24,13 +24,15 @@ function replaceNotAllowedNames(name: string) {
 }
 
 function toTypescriptType(luaType: string) {
-  if (luaType === "nil") return "undefined";
-  if (luaType === "table") return "{}";
-  if (luaType === "int") return "number";
-  if (luaType === "float") return "number";
-  if (luaType === "bool") return "boolean";
+  const luaToTsTypeMap = {
+    nil: "undefined",
+    table: "{}",
+    int: "number",
+    float: "number",
+    bool: "boolean",
+  };
 
-  return luaType;
+  return luaToTsTypeMap[luaType] ?? luaType;
 }
 
 export function generateClass(data: CleanYamlData) {
@@ -148,45 +150,7 @@ function generateClassMethodReturns(returns: ReturnType[]) {
   }${singleReturn.nullable ? " | null" : ""}`;
 }
 
-// export function generateClassConstructors(constructors: CleanConstructor[]) {
-//   return constructors
-//     .flatMap((constructor) => generateClassConstructor(constructor))
-//     .filter((line) => !!line)
-//     .join("\n");
-// }
-
-// export function generateClassConstructor(constructor: CleanConstructor) {
-//   if (constructor === null) {
-//     console.warn("null constructor!");
-//     return "";
-//   }
-
-//   return [
-//     generateInlineComment(constructor.description),
-//     `constructor(${generateClassMethodParameters(constructor.params)});`,
-//   ];
-// }
-
-// export function generateClassValues(values: ExtValueType[]) {
-//   return values
-//     .map((v) => `static readonly ${v.name} = ${v.value};`)
-//     .join("\n");
-// }
-
 export function generateClassOperation() {}
-
-// export function generateClassStatic(_static: ExtParam[]) {
-//   return _static
-//     .map((s) => {
-//       return `
-//       ${generateInlineComment(s.description)}
-//       static readonly ${s.name} : ${s.type}${s.table ? "[]" : ""} ${
-//         s.default ? `= ${s.default}` : ""
-//       };
-//     `;
-//     })
-//     .join("\n");
-// }
 
 function generateInlineComment(comment?: string) {
   return comment ? `// ${comment.replace(/\n/g, "\n//")}` : "";
