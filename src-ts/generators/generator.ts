@@ -1,11 +1,9 @@
-import { Method } from "got/dist/source";
 import prettier from "prettier";
 import {
   CleanMethod,
   CleanYamlData,
   ExtParam,
   ExtProp,
-  ExtValueType,
   ReturnType,
 } from "../parsers/parser";
 
@@ -16,6 +14,14 @@ const opMapping = {
   div: "LuaDivisionMethod",
   lt: "LuaLessThanMethod",
 };
+
+function replaceNotAllowedNames(name: string) {
+  if (name === "with") {
+    return `_${name}`;
+  }
+
+  return name;
+}
 
 function toTypescriptType(luaType: string) {
   if (luaType === "nil") return "undefined";
@@ -33,14 +39,19 @@ export function generateClass(data: CleanYamlData) {
   declare class ${data.name} ${
     data.inherits ? `extends ${data.inherits}` : ""
   } {
-    ${generateClassStatic(data.static)}
+    // static
+    ${generateClassProperties(data.static)}
 
-    ${generateClassValues(data.values)}
+    // values
+    ${generateClassProperties(data.values)}
     
+    // properties
     ${generateClassProperties(data.properties)}
     
+    // constructors
     ${generateClassMethods(data.constructors)}
 
+    // methods
     ${generateClassMethods(data.methods)}
   }
   `;
@@ -48,34 +59,42 @@ export function generateClass(data: CleanYamlData) {
   return prettier.format(code, { parser: "typescript" });
 }
 
-export function generateClassProperties(props: ExtProp[]) {
+export function generateClassProperties(props: ExtProp[], separator = "\n") {
   return props
     .flatMap((p) => generateClassProperty(p))
     .filter((line) => !!line)
-    .join("\n");
+    .join(separator);
 }
 
 export function generateClassProperty(prop: ExtProp) {
-  const propType = [
-    `${toTypescriptType(prop.type)}${prop.array ? "[]" : ""}`,
-    prop.nullable ? "null" : undefined,
-  ]
-    .filter((type) => !!type)
-    .join("|");
-  const mods = [prop.readOnly ? "readonly" : ""].join(" ");
+  const propType =
+    prop.type !== undefined
+      ? [
+          `${toTypescriptType(prop.type)}${prop.array ? "[]" : ""}`,
+          prop.nullable ? "null" : undefined,
+        ]
+          .filter((type) => !!type)
+          .join("|")
+      : undefined;
+  const mods = [
+    prop.static ? "static" : "",
+    prop.readOnly ? "readonly" : "",
+  ].join(" ");
 
   return [
     generateInlineComment(prop.description),
-    `${mods} ${prop.name}: ${propType}`,
+    `${mods} ${prop.name}${propType ? ` : ${propType}` : ""} ${
+      prop.value ? ` = ${prop.value}` : ""
+    }`,
   ];
 }
 
 export function generateClassMethodParameter(param: ExtParam) {
-  return `${param.variadic ? "..." : ""}${param.name}: ${toTypescriptType(
-    param.type
-  )}${param.table ? "[]" : ""}${param.nullable ? " | undefined" : ""}${
-    param.default ? ` = ${param.default}` : ""
-  }`;
+  return `${param.variadic ? "..." : ""}${replaceNotAllowedNames(
+    param.name
+  )}: ${toTypescriptType(param.type)}${param.table ? "[]" : ""}${
+    param.nullable ? " | undefined" : ""
+  }${param.default ? ` = ${param.default}` : ""}`;
 }
 
 export function generateClassMethodParameters(params?: ExtParam[]) {
@@ -140,43 +159,39 @@ function generateClassMethodReturns(returns: ReturnType[]) {
 //   ];
 // }
 
-export function generateClassValues(values: ExtValueType[]) {
-  return values
-    .map((v) => `static readonly ${v.name} = ${v.value};`)
-    .join("\n");
-}
+// export function generateClassValues(values: ExtValueType[]) {
+//   return values
+//     .map((v) => `static readonly ${v.name} = ${v.value};`)
+//     .join("\n");
+// }
 
 export function generateClassOperation() {}
 
-export function generateClassStatic(_static: ExtParam[]) {
-  return _static
-    .map((s) => {
-      return `
-      ${generateInlineComment(s.description)}
-      static readonly ${s.name} : ${s.type}${s.table ? "[]" : ""} ${
-        s.default ? `= ${s.default}` : ""
-      };
-    `;
-    })
-    .join("\n");
-}
+// export function generateClassStatic(_static: ExtParam[]) {
+//   return _static
+//     .map((s) => {
+//       return `
+//       ${generateInlineComment(s.description)}
+//       static readonly ${s.name} : ${s.type}${s.table ? "[]" : ""} ${
+//         s.default ? `= ${s.default}` : ""
+//       };
+//     `;
+//     })
+//     .join("\n");
+// }
 
 function generateInlineComment(comment?: string) {
-  return comment ? `// ${comment}` : "";
+  return comment ? `// ${comment.replace(/\n/g, "\n//")}` : "";
 }
 
 export function generateEnum(data: CleanYamlData) {
   const code = `
   ${generateInlineComment(data.description)}
   declare enum ${data.name} {
-    ${data.values
-      .map((v) => [
-        generateInlineComment(v.description),
-        `${v.name} = ${v.value},`,
-      ])
-      .flat()
-      .filter((s) => s !== undefined && s !== "")
-      .join("\n")}
+    ${generateClassProperties(
+      data.values.map((v) => ({ ...v, static: false, readOnly: false })),
+      ",\n"
+    )}
   }
   `;
 

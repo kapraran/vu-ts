@@ -33,7 +33,7 @@ class Counter {
 
 // done
 type Prop = {
-  type: string;
+  type?: string;
   description?: string;
   readOnly?: boolean;
   readonly?: boolean;
@@ -43,7 +43,14 @@ type Prop = {
   nestedTable?: boolean;
 };
 
-export type ExtProp = Omit<Prop & { name: string }, "readonly">;
+export type ExtProp = Omit<
+  Prop & {
+    name: string;
+    static: boolean;
+    value?: any;
+  },
+  "readonly"
+>;
 
 // done
 export type ReturnType = {
@@ -126,9 +133,9 @@ export type CleanYamlData = {
   inherits?: string; // gen
   constructors: CleanMethod[];
   properties: ExtProp[];
-  static: ExtParam[];
+  static: ExtProp[];
   operators: OperatorType[];
-  values: ExtValueType[]; // gen
+  values: ExtProp[]; // gen
   methods: CleanMethod[];
 };
 
@@ -163,24 +170,29 @@ export function parseTypeFile(data: YamlData): CleanYamlData {
         name,
         ...prop,
         readOnly: prop.readOnly || prop.readonly || false,
+        static: false,
       };
     }
   );
 
-  const values = Object.entries(data.values || {}).map<ExtValueType>(
+  const values = Object.entries(data.values || {}).map<ExtProp>(
     ([name, value]) => {
       return {
         name,
         ...value,
+        static: true,
       };
     }
   );
 
-  const _static = Object.entries(data.static || {}).map<ExtParam>(
-    ([name, value]) => {
+  const _static = Object.entries(data.static || {}).map<ExtProp>(
+    ([name, staticProps]) => {
       return {
         name,
-        ...value,
+        ...staticProps,
+        static: true,
+        readOnly: true,
+        value: staticProps.default,
       };
     }
   );

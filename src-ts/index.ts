@@ -26,8 +26,8 @@ async function buildTypes(docsDir: string) {
   // const docsFilepaths = await getAllDocsFilepaths(docsDir);
   // console.log("TODO buildTypes()");
 
-  // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
-  const typeDirs = ["server/type"];
+  const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
+  // const typeDirs = ["server/type"];
 
   const results: BuildResult[] = [];
 
