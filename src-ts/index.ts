@@ -6,7 +6,7 @@ import {
 import { downloadRepo, extractRepo } from "./repo";
 import { resolve } from "path";
 import { readdir, readFile, writeFile } from "fs-extra";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import {
   CleanYamlData,
   LibraryFileYaml,
