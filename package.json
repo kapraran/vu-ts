@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "start": "tsup src-ts/index.ts & node dist/index.js",
-    "dev": "npx watch \"yarn start\" ./src-ts"
+    "start": "tsup src/index.ts & node dist/index.js",
+    "dev": "npx watch \"yarn start\" ./src"
   },
   "dependencies": {
     "@tyriar/fibonacci-heap": "^2.0.9",
