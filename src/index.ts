@@ -7,7 +7,11 @@ import {
   VU_DOCS_REPO_URL,
 } from "./config";
 import generateEnumFile from "./generators/enum";
+import generateEventFile from "./generators/event";
+import generateLibraryFile from "./generators/library";
 import parseEnumFile from "./parsers/enum";
+import parseEventFile from "./parsers/event";
+import parseLibraryFile from "./parsers/library";
 import { CleanYamlData } from "./parsers/parser";
 import { downloadRepo, extractRepo } from "./repo";
 import { saveDeclarationFile } from "./utils";
@@ -24,7 +28,8 @@ type BuildResult = {
 };
 
 const pipelineMap = {
-  // library: [parseLibraryFile, generateLibrary],
+  event: [parseEventFile, generateEventFile],
+  library: [parseLibraryFile, generateLibraryFile],
   enum: [parseEnumFile, generateEnumFile],
 };
 
@@ -33,8 +38,9 @@ async function buildTypes(docsDir: string) {
   // const docsFilepaths = await getAllDocsFilepaths(docsDir);
   // console.log("TODO buildTypes()");
 
-  const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
+  // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
   // const typeDirs = ["client/library", "server/library", "shared/library"];
+  const typeDirs = ["client/event", "server/event", "shared/event"];
   // const typeDirs = ["server/type"];
 
   const results: BuildResult[] = [];
