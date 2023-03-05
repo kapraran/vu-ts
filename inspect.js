@@ -13,16 +13,14 @@ const argv = yargs(hideBin(process.argv))
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 
 function mergeByKey(results, { useType }) {
-  const mergedResults = {};
-
-  for (const result of results) {
+  return results.reduce((mergedResults, result) => {
     Object.keys(result).forEach((key) => {
       const val = useType ? typeof result[key] : result[key];
       mergedResults[key] = new Set([...(mergedResults[key] || []), val]);
     });
-  }
 
-  return mergedResults;
+    return mergedResults;
+  }, {});
 }
 
 async function main(globPaths, jsonPath) {
@@ -42,7 +40,7 @@ async function main(globPaths, jsonPath) {
   }
 
   const merged = mergeByKey(
-    results.map((r) => r[0]),
+    results.map((r) => r[0]).filter((r) => !!r),
     {
       useType: argv.type,
     }
