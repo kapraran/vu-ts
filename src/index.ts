@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs-extra";
-import * as yaml from "js-yaml";
 import { resolve } from "path";
+import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
@@ -8,13 +8,13 @@ import {
 } from "./config";
 import generateEnumFile from "./generators/enum";
 import parseEnumFile from "./parsers/enum";
-import { CleanYamlData, YamlData } from "./parsers/parser";
+import { CleanYamlData } from "./parsers/parser";
 import { downloadRepo, extractRepo } from "./repo";
 import { saveDeclarationFile } from "./utils";
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");
-  return yaml.load(contents) as YamlData;
+  return YAML.parse(contents);
 }
 
 type BuildResult = {
@@ -63,14 +63,11 @@ async function buildTypes(docsDir: string) {
         methods: [],
       };
 
-      const pipeline = pipelineMap[data?.type];
-
+      const pipeline = pipelineMap[data.type];
       if (pipeline === undefined) continue;
 
       const [parser, generator] = pipeline;
       const code = generator(parser(data)) || "";
-
-      // const formattedCode = prettier.format(code, { parser: "typescript" });
 
       if (code.length > 0) {
         const result: BuildResult = {
@@ -92,11 +89,6 @@ async function buildTypes(docsDir: string) {
     const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
 
     await saveDeclarationFile(fullPath, result.source);
-
-    // ensureFileSync(fullPath);
-    // writeFileSync(fullPath, result.source, "utf-8");
-
-    console.log(relPath);
   });
 
   console.log("the-end");
