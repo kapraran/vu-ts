@@ -4,14 +4,14 @@ export default interface RawLibraryFile {
   methods: {
     name: string;
     description?: string;
-    returns: {
+    returns?: {
       type: string;
-      nullable: boolean;
-      array: boolean;
-      table: boolean;
+      nullable?: boolean;
+      array?: boolean;
+      table?: boolean;
       description?: string;
     };
-    params: Record<
+    params?: Record<
       string,
       {
         type: string;
