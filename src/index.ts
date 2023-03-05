@@ -6,9 +6,11 @@ import {
   REPO_ZIP_EXTRACT_DIR,
   VU_DOCS_REPO_URL,
 } from "./config";
-import { generateLibrary } from "./generators/generator";
-import { CleanYamlData, parseLibraryFile, YamlData } from "./parsers/parser";
+import generateEnumFile from "./generators/enum";
+import parseEnumFile from "./parsers/enum";
+import { CleanYamlData, YamlData } from "./parsers/parser";
 import { downloadRepo, extractRepo } from "./repo";
+import { saveDeclarationFile } from "./utils";
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");
@@ -22,7 +24,8 @@ type BuildResult = {
 };
 
 const pipelineMap = {
-  library: [parseLibraryFile, generateLibrary],
+  // library: [parseLibraryFile, generateLibrary],
+  enum: [parseEnumFile, generateEnumFile],
 };
 
 async function buildTypes(docsDir: string) {
@@ -30,8 +33,8 @@ async function buildTypes(docsDir: string) {
   // const docsFilepaths = await getAllDocsFilepaths(docsDir);
   // console.log("TODO buildTypes()");
 
-  // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
-  const typeDirs = ["client/library", "server/library", "shared/library"];
+  const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
+  // const typeDirs = ["client/library", "server/library", "shared/library"];
   // const typeDirs = ["server/type"];
 
   const results: BuildResult[] = [];
@@ -67,19 +70,7 @@ async function buildTypes(docsDir: string) {
       const [parser, generator] = pipeline;
       const code = generator(parser(data)) || "";
 
-      // if (data?.type === "class") cleanData = parseTypeFile(data);
-      // if (data?.type === "enum") cleanData = parseTypeFile(data);
-      // if (data?.type === "library")
-      //   cleanData = parseLibraryFile(data as LibraryFileYaml);
-
-      // let code = "";
-      // if (cleanData.type === "class") code = generateClass(cleanData);
-      // if (cleanData.type === "enum") code = generateEnum(cleanData);
-      // if (cleanData.type === "library") code = generateLibrary(cleanData);
-      // if (cleanData.type === "event") code = "";
-      // if (cleanData.type === "hook") code = "";
-
-      console.log(code);
+      // const formattedCode = prettier.format(code, { parser: "typescript" });
 
       if (code.length > 0) {
         const result: BuildResult = {
@@ -94,6 +85,19 @@ async function buildTypes(docsDir: string) {
       }
     }
   }
+
+  results.forEach(async (result) => {
+    const matches = result.path.match(/VU-Docs-master\\types\\(.*)\.yaml$/i);
+    const relPath = matches![1];
+    const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
+
+    await saveDeclarationFile(fullPath, result.source);
+
+    // ensureFileSync(fullPath);
+    // writeFileSync(fullPath, result.source, "utf-8");
+
+    console.log(relPath);
+  });
 
   console.log("the-end");
 }

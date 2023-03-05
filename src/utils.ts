@@ -5,7 +5,8 @@ export async function saveDeclarationFile(
   filePath: string,
   code: string
 ): Promise<void> {
-  await ensureFile(filePath);
   const formattedCode: string = prettier.format(code, { parser: "typescript" });
+
+  await ensureFile(filePath);
   await writeFile(filePath, formattedCode, "utf8");
 }
