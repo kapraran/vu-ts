@@ -8,6 +8,7 @@ const { readFile } = require("fs-extra");
 const argv = yargs(hideBin(process.argv))
   .usage("$0 <jsonpath>")
   .option("type")
+  .option("ftype")
   .array("file").argv;
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
@@ -36,13 +37,16 @@ async function main(globPaths, jsonPath) {
   for (const filepath of files) {
     const textContent = await readFile(filepath, "utf8");
     const parsedObject = YAML.parse(textContent);
+
+    if (argv.ftype && parsedObject.type !== argv.ftype) continue;
+
     const result = JSONPath({ path: jsonPath, json: parsedObject });
 
     results.push(result);
   }
 
   const merged = mergeByKey(
-    results.map((r) => r[0]).filter((r) => !!r),
+    results.flat().filter((r) => !!r),
     {
       useType: argv.type,
     }

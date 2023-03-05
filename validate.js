@@ -8,6 +8,14 @@ const yargs = require("yargs");
 const { hideBin } = require("yargs/helpers");
 const TJS = require("typescript-json-schema");
 
+function cleanUp(data) {
+  if (data.constructors) {
+    data.constructors = data.constructors.filter((c) => !!c);
+  }
+
+  return data;
+}
+
 const settings = {
   required: true,
 };
@@ -17,7 +25,10 @@ const compilerOptions = {
 };
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
-const argv = yargs(hideBin(process.argv)).usage("$0 <type>").array("file").argv;
+const argv = yargs(hideBin(process.argv))
+  .usage("$0 <type>")
+  .option("ftype")
+  .array("file").argv;
 
 const program = TJS.getProgramFromFiles(
   [resolve(__dirname, `./src/types/${argv._[0]}.ts`)],
@@ -32,10 +43,14 @@ const files = (argv.file || []).flatMap((globPath) =>
 
 files.forEach((file) => {
   const data = YAML.parse(readFileSync(file, "utf8"));
-  const valid = ajv.validate(schema, data);
+
+  if (argv.ftype && data.type !== argv.ftype) return;
+
+  const valid = ajv.validate(schema, cleanUp(data));
 
   if (!valid) {
     console.error(`Invalid file: ${file}`);
     console.log(ajv.errors);
+    // console.log(data);
   }
 });
