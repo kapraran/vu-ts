@@ -11,12 +11,11 @@ export default interface RawLibraryFile {
       table?: boolean;
       description?: string;
     };
-    params?: Record<
-      string,
-      {
+    params?: {
+      [name: string]: {
         type: string;
         description?: string;
-      }
-    >;
+      };
+    };
   }[];
 }

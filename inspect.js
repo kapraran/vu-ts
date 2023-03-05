@@ -31,6 +31,8 @@ async function main(globPaths, jsonPath) {
     files.push(...(await glob(pathPrefix + globPath)));
   }
 
+  // console.log(files);
+
   for (const filepath of files) {
     const textContent = await readFile(filepath, "utf8");
     const parsedObject = YAML.parse(textContent);

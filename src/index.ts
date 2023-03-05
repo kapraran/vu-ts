@@ -1,24 +1,14 @@
+import { readdir, readFile } from "fs-extra";
+import * as yaml from "js-yaml";
+import { resolve } from "path";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
   VU_DOCS_REPO_URL,
 } from "./config";
+import { generateLibrary } from "./generators/generator";
+import { CleanYamlData, parseLibraryFile, YamlData } from "./parsers/parser";
 import { downloadRepo, extractRepo } from "./repo";
-import { resolve } from "path";
-import { readdir, readFile, writeFile } from "fs-extra";
-import * as yaml from "js-yaml";
-import {
-  CleanYamlData,
-  LibraryFileYaml,
-  parseLibraryFile,
-  parseTypeFile,
-  YamlData,
-} from "./parsers/parser";
-import {
-  generateClass,
-  generateEnum,
-  generateLibrary,
-} from "./generators/generator";
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");
@@ -29,6 +19,10 @@ type BuildResult = {
   path: string;
   parseResult: CleanYamlData;
   source: string;
+};
+
+const pipelineMap = {
+  library: [parseLibraryFile, generateLibrary],
 };
 
 async function buildTypes(docsDir: string) {
@@ -66,17 +60,24 @@ async function buildTypes(docsDir: string) {
         methods: [],
       };
 
-      if (data?.type === "class") cleanData = parseTypeFile(data);
-      if (data?.type === "enum") cleanData = parseTypeFile(data);
-      if (data?.type === "library")
-        cleanData = parseLibraryFile(data as LibraryFileYaml);
+      const pipeline = pipelineMap[data?.type];
 
-      let code = "";
-      if (cleanData.type === "class") code = generateClass(cleanData);
-      if (cleanData.type === "enum") code = generateEnum(cleanData);
-      if (cleanData.type === "library") code = generateLibrary(cleanData);
-      if (cleanData.type === "event") code = "";
-      if (cleanData.type === "hook") code = "";
+      if (pipeline === undefined) continue;
+
+      const [parser, generator] = pipeline;
+      const code = generator(parser(data)) || "";
+
+      // if (data?.type === "class") cleanData = parseTypeFile(data);
+      // if (data?.type === "enum") cleanData = parseTypeFile(data);
+      // if (data?.type === "library")
+      //   cleanData = parseLibraryFile(data as LibraryFileYaml);
+
+      // let code = "";
+      // if (cleanData.type === "class") code = generateClass(cleanData);
+      // if (cleanData.type === "enum") code = generateEnum(cleanData);
+      // if (cleanData.type === "library") code = generateLibrary(cleanData);
+      // if (cleanData.type === "event") code = "";
+      // if (cleanData.type === "hook") code = "";
 
       console.log(code);
 
