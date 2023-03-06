@@ -14,6 +14,8 @@ import parseLibraryFile from "./parsers/library";
 import { downloadRepo, extractRepo } from "./repo";
 import eventTransformer from "./transformers/event";
 
+type typeNamespace = "client" | "server" | "shared" | "fb";
+
 export type ParseResult<T extends unknown> = {
   filePath: string;
   type: string;
@@ -126,9 +128,10 @@ async function main() {
 }
 
 main();
-function resolveNamespace(filePath: string): "client" | "server" | "shared" {
+function resolveNamespace(filePath: string): typeNamespace {
   if (filePath.match(/VU-Docs-master\\types\\client/i)) return "client";
   if (filePath.match(/VU-Docs-master\\types\\server/i)) return "server";
+  if (filePath.match(/VU-Docs-master\\types\\fb/i)) return "fb";
   return "shared";
 }
 function resolveRelPath(filePath: string): string {
