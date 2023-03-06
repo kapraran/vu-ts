@@ -1,11 +1,5 @@
 import RawEventFile from "../types/RawEventFile";
-import { CleanCommonFile } from "./common";
-
-interface ParamType {
-  name: string;
-  type: string;
-  nullable: boolean;
-}
+import { CleanCommonFile, defaultParamType, ParamType } from "./common";
 
 export interface CleanEventFile extends CleanCommonFile {
   type: "event";
@@ -19,8 +13,8 @@ export default function (data: RawEventFile): CleanEventFile {
     description: data.description || "",
     params: Object.entries(data.params || {}).map(([name, param]) => {
       return {
+        ...defaultParamType,
         name,
-        nullable: false,
         ...param,
       };
     }),

@@ -1,19 +1,11 @@
 import RawLibraryFile from "../types/RawLibraryFile";
-import { CleanCommonFile } from "./common";
-
-export interface ReturnType {
-  type: string;
-  description: string;
-  nullable: boolean;
-  array: boolean;
-  table: boolean;
-}
-
-export interface ParamType {
-  type: string;
-  description: string;
-  name: string;
-}
+import {
+  CleanCommonFile,
+  defaultParamType,
+  defaultReturnType,
+  ParamType,
+  ReturnType,
+} from "./common";
 
 export interface MethodType {
   name: string;
@@ -32,19 +24,13 @@ export default function (fileData: RawLibraryFile): CleanLibraryFile {
     const returns = [method.returns]
       .filter((v) => !!v)
       .map((v) => ({
-        ...{
-          type: "",
-          nullable: false,
-          array: false,
-          table: false,
-          description: "",
-        },
+        ...defaultReturnType,
         ...v,
       }));
 
     const params = Object.entries(method.params || {}).map(([name, value]) => ({
+      ...defaultParamType,
       name,
-      description: "",
       ...value,
     }));
 
