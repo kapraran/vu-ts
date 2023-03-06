@@ -1,5 +1,5 @@
-import { readdir, readFile } from "fs-extra";
-import { resolve } from "path";
+import { readFile } from "fs-extra";
+import { globSync } from "glob";
 import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
@@ -12,20 +12,18 @@ import generateLibraryFile from "./generators/library";
 import parseEnumFile from "./parsers/enum";
 import parseEventFile from "./parsers/event";
 import parseLibraryFile from "./parsers/library";
-import { CleanYamlData } from "./parsers/parser";
 import { downloadRepo, extractRepo } from "./repo";
-import { saveDeclarationFile } from "./utils";
+
+type ParseResult = {
+  path: string;
+  namespace: "client" | "server" | "shared";
+  result: unknown;
+};
 
 async function readYamlData(filePath: string) {
   const contents = await readFile(filePath, "utf8");
   return YAML.parse(contents);
 }
-
-type BuildResult = {
-  path: string;
-  parseResult: CleanYamlData;
-  source: string;
-};
 
 const pipelineMap = {
   event: [parseEventFile, generateEventFile],
@@ -33,69 +31,49 @@ const pipelineMap = {
   enum: [parseEnumFile, generateEnumFile],
 };
 
-async function buildTypes(docsDir: string) {
-  // get list of all yaml files
-  // const docsFilepaths = await getAllDocsFilepaths(docsDir);
-  // console.log("TODO buildTypes()");
+const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 
+async function buildTypes(docsDir: string) {
   // const typeDirs = ["client/type", "server/type", "shared/type", "fb"];
   // const typeDirs = ["client/library", "server/library", "shared/library"];
   const typeDirs = ["client/event", "server/event", "shared/event"];
   // const typeDirs = ["server/type"];
 
-  const results: BuildResult[] = [];
+  const parseResults = new Map<string, ParseResult>();
 
-  for (const typeDir of typeDirs) {
-    const parentDir = resolve(
-      __dirname,
-      "../.cache/extracted/VU-Docs-master/types/",
-      typeDir
-    );
-    const filesInDir = await readdir(parentDir);
+  const globPaths = ["*/event/*.yaml"];
 
-    for (const filename of filesInDir) {
-      const p = resolve(parentDir, filename);
+  const filePaths = globPaths.flatMap((globPath) =>
+    globSync(pathPrefix + globPath)
+  );
 
-      const data = await readYamlData(p);
+  for (const filePath of filePaths) {
+    const data = await readYamlData(filePath);
 
-      let cleanData: CleanYamlData = {
-        name: data.name,
-        type: data.type,
-        constructors: [],
-        properties: [],
-        operators: [],
-        values: [],
-        static: [],
-        methods: [],
-      };
+    const pipeline = pipelineMap[data.type];
+    if (pipeline === undefined) continue;
 
-      const pipeline = pipelineMap[data.type];
-      if (pipeline === undefined) continue;
+    const [parser, generator] = pipeline;
+    const parserResult = parser(data);
 
-      const [parser, generator] = pipeline;
-      const code = generator(parser(data)) || "";
+    const result = {
+      path: filePath,
+      namespace: resolveNamespace(filePath),
+      result: parserResult,
+    } as ParseResult;
 
-      if (code.length > 0) {
-        const result: BuildResult = {
-          path: p,
-          parseResult: cleanData,
-          source: code,
-        };
-
-        results.push(result);
-      } else {
-        console.warn(`${p} did not generate any code`);
-      }
-    }
+    parseResults.set(filePath, result);
   }
 
-  results.forEach(async (result) => {
-    const matches = result.path.match(/VU-Docs-master\\types\\(.*)\.yaml$/i);
-    const relPath = matches![1];
-    const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
+  console.log(parseResults);
 
-    await saveDeclarationFile(fullPath, result.source);
-  });
+  // results.forEach(async (result) => {
+  //   const matches = result.path.match(/VU-Docs-master\\types\\(.*)\.yaml$/i);
+  //   const relPath = matches![1];
+  //   const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
+
+  //   await saveDeclarationFile(fullPath, result.source);
+  // });
 
   console.log("the-end");
 }
@@ -107,3 +85,8 @@ async function main() {
 }
 
 main();
+function resolveNamespace(filePath: string): "client" | "server" | "shared" {
+  if (filePath.match(/VU-Docs-master\\types\\client/i)) return "client";
+  if (filePath.match(/VU-Docs-master\\types\\server/i)) return "server";
+  return "shared";
+}
