@@ -19,7 +19,7 @@ type typeNamespace = "client" | "server" | "shared" | "fb";
 export type ParseResult<T extends unknown> = {
   filePath: string;
   type: string;
-  namespace: "client" | "server" | "shared";
+  namespace: typeNamespace;
   result: T;
 };
 
@@ -67,43 +67,47 @@ async function buildTypes(docsDir: string) {
 
   // create different maps per namespace
   const declarations = {
-    client: [/^client/i, /^fb/i, /^shared/i],
-    server: [/^server/i, /^fb/i, /^shared/i],
-    shared: [/^fb/i, /^shared/i],
+    client: ["client", "fb", "shared"],
+    server: ["server", "fb", "shared"],
+    shared: ["fb", "shared"],
   };
 
-  const symbolMaps = Object.entries(declarations).reduce(
-    (acc, [name, tests]) => {
-      const m = new Map();
-      for (const key of parseResults.keys()) {
-        if (!tests.some((t) => key.match(t))) continue;
+  const symbolMaps = Object.entries(declarations).reduce<
+    Record<string, Map<string, ParseResult<any>>>
+  >((acc, [name, tests]) => {
+    const m = new Map();
+    for (const key of parseResults.keys()) {
+      const value = parseResults.get(key);
+      if (value === undefined || !tests.includes(value.namespace)) continue;
 
-        const value = parseResults.get(key);
-        m.set(key, JSON.parse(JSON.stringify(value)));
-      }
+      m.set(key, JSON.parse(JSON.stringify(value)));
+    }
 
-      return {
-        ...acc,
-        [name]: m,
-      };
-    },
-    {}
-  );
+    return {
+      ...acc,
+      [name]: m,
+    };
+  }, {});
 
   // console.log(symbolMaps);
 
   // transforming step
-  for (const filePath of filePaths) {
-    const parseResult = parseResults.get(resolveRelPath(filePath))!;
-    const pipeline = pipelineMap[parseResult.type];
-    if (pipeline === undefined || !pipeline.transformer) continue;
+  Object.entries(declarations).forEach(([ctx, ns]) => {
+    for (const filePath of filePaths) {
+      const parseResult = parseResults.get(resolveRelPath(filePath))!;
+      if (!ns.includes(parseResult.namespace)) continue;
 
-    const { transformer } = pipeline;
-    transformer(parseResult, symbolMaps);
-  }
+      const pipeline = pipelineMap[parseResult.type];
+      if (pipeline === undefined || !pipeline.transformer) continue;
+
+      const { transformer } = pipeline;
+      transformer(parseResult, ctx, symbolMaps);
+    }
+  });
 
   console.log(
-    symbolMaps.shared.get("shared\\library\\Events.yaml").result.methods
+    symbolMaps.client.get("shared\\library\\Events.yaml")!.result.methods[10]
+      .params
   );
 
   // declarations generation step

@@ -5,11 +5,11 @@ import { CleanLibraryFile } from "../parsers/library";
 
 export default function (
   parseResult: ParseResult<CleanEventFile>,
+  ctx: "shared" | "client" | "server",
   symbolTable: { shared: Map<string, ParseResult<any>> }
 ) {
-  const eventsLib = symbolTable.shared.get("shared\\library\\Events.yaml")!
+  const eventsLib = symbolTable[ctx].get("shared\\library\\Events.yaml")!
     .result as CleanLibraryFile;
-
   const eventFile = parseResult.result;
 
   // TODO use evetsFile.params
@@ -17,7 +17,7 @@ export default function (
     {
       ...defaultParamType,
       name: "eventName",
-      type: eventFile.name,
+      type: `"${eventFile.name}"`,
     },
     {
       ...defaultParamType,
