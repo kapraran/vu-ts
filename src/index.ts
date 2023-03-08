@@ -47,8 +47,8 @@ const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 async function buildTypes(docsDir: string) {
   const parseResults = new Map<string, ParseResult<any>>();
 
-  const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
-  // const globPaths = ["**/*.yaml"];
+  // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
+  const globPaths = ["**/*.yaml"];
 
   const filePaths = globPaths.flatMap((globPath) =>
     globSync(pathPrefix + globPath)

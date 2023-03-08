@@ -1,7 +1,10 @@
 import { ParseResult } from "..";
-import { defaultParamType, defaultReturnType } from "../parsers/common";
+import {
+  CleanClassFile,
+  defaultParamType,
+  defaultReturnType,
+} from "../parsers/common";
 import { CleanEventFile } from "../parsers/event";
-import { CleanLibraryFile } from "../parsers/library";
 
 export default function (
   parseResult: ParseResult<CleanEventFile>,
@@ -9,7 +12,7 @@ export default function (
   symbolTable: { shared: Map<string, ParseResult<any>> }
 ) {
   const eventsLib = symbolTable[ctx].get("shared\\library\\Events.yaml")!
-    .result as CleanLibraryFile;
+    .result as CleanClassFile;
   const eventFile = parseResult.result;
 
   // TODO use evetsFile.params
@@ -22,7 +25,7 @@ export default function (
     {
       ...defaultParamType,
       name: "callback",
-      type: `(...args) => void`,
+      type: `(...args:any[]) => void`,
     },
   ];
 

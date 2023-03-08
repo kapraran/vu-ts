@@ -2,7 +2,7 @@ export function fixTypeName(name: string) {
   const typeMap = {
     bool: "boolean",
     int: "number",
-    callable: "(...args:any) => any",
+    callable: "(...args:any[]) => any",
     float: "number",
     table: "LuaTable<string, any>",
   };
@@ -11,7 +11,7 @@ export function fixTypeName(name: string) {
 }
 
 export function fixParamName(name: string) {
-  const blacklist = ["default"];
+  const blacklist = ["default", "with"];
 
   return blacklist.includes(name) ? `_${name}` : name;
 }

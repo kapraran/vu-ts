@@ -69,6 +69,7 @@ export const defaultPropType = {
 export interface MethodType {
   name: string;
   description: string;
+  generic?: string;
   params: ParamType[];
   returns: ReturnType[];
 }

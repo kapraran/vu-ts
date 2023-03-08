@@ -2,10 +2,11 @@ import {
   CleanClassFile,
   MethodType,
   OperatorType,
+  ParamType,
   PropType,
   ReturnType,
 } from "../parsers/common";
-import { fixTypeName } from "./common";
+import { fixParamName, fixTypeName } from "./common";
 
 const opMapping = {
   add: "LuaAdditionMethod",
@@ -54,9 +55,22 @@ function generateOperatorCode(op: OperatorType, data: CleanClassFile) {
 }
 
 function generateMethodCode(m: MethodType, data: CleanClassFile) {
-  return `${data.declareAs === "namespace" ? "function" : ""}  ${
-    m.name
-  }() ${generateReturnsCode(m)}`;
+  return `${data.declareAs === "namespace" ? "function" : ""}  ${m.name} ${
+    m.generic ? `<${m.generic}>` : ""
+  } (${generateParamsCode(m, data)}) ${generateReturnsCode(m)}`;
+}
+
+function generateParamsCode(m: MethodType, data: CleanClassFile) {
+  return m.params.map((p) => generateParamCode(p, data)).join(", ");
+}
+
+function generateParamCode(p: ParamType, data: CleanClassFile) {
+  // TODO p.table
+  return `${p.variadic ? "..." : ""}${fixParamName(p.name)}: ${fixTypeName(
+    p.type
+  )} ${p.nullable ? "| null" : ""} ${
+    p.default && data.declareAs !== "namespace" ? `= ${p.default}` : ""
+  }`;
 }
 
 export default function (data: CleanClassFile) {
