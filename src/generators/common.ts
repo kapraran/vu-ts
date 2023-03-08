@@ -4,6 +4,7 @@ export function fixTypeName(name: string) {
     int: "number",
     callable: "(...args:any) => any",
     float: "number",
+    table: "LuaTable<string, any>",
   };
 
   return typeMap[name] || name;

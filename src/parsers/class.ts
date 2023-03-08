@@ -1,52 +1,10 @@
 import RawClassFile from "../types/RawClassFile";
 import {
-  CleanCommonFile,
+  CleanClassFile,
   defaultParamType,
+  defaultPropType,
   defaultReturnType,
-  ParamType,
-  ReturnType,
 } from "./common";
-
-export interface OperatorType {
-  type: "add" | "sub" | "mult" | "div" | "eq" | "lt";
-  rhs: string;
-  returns: string;
-}
-
-export interface PropType {
-  name: string;
-  type: string;
-  description: string;
-  readOnly: boolean;
-  nullable: boolean;
-  table: boolean;
-  static: boolean;
-}
-
-export const defaultPropType = {
-  name: "",
-  type: "",
-  description: "",
-  readOnly: false,
-  nullable: false,
-  table: false,
-  static: false,
-};
-
-export interface MethodType {
-  name: string;
-  description: string;
-  params: ParamType[];
-  returns: ReturnType[];
-}
-
-export interface CleanClassFile extends CleanCommonFile {
-  type: "class";
-  inherits?: string;
-  properties: PropType[];
-  operators: OperatorType[];
-  methods: MethodType[];
-}
 
 export default function (data: RawClassFile): CleanClassFile {
   const properties = Object.entries(data.properties || {}).map(
@@ -91,7 +49,7 @@ export default function (data: RawClassFile): CleanClassFile {
   });
 
   const constructors = (data.constructors || []).map((constructor) => {
-    const params = Object.entries(constructor.params || {}).map(
+    const params = Object.entries(constructor?.params || {}).map(
       ([name, value]) => ({
         ...defaultParamType,
         name,
@@ -101,7 +59,7 @@ export default function (data: RawClassFile): CleanClassFile {
 
     return {
       name: "constructor",
-      description: constructor.description || "",
+      description: constructor?.description || "",
       params,
       returns: [],
     };
@@ -110,6 +68,7 @@ export default function (data: RawClassFile): CleanClassFile {
   return {
     name: data.name,
     type: "class",
+    declareAs: "class",
     description: data.description || "",
     properties: properties.concat(_static),
     operators: data.operators || [],

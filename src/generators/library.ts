@@ -1,4 +1,3 @@
-import { CleanLibraryFile, ReturnType } from "../parsers/library";
 import { fixParamName, fixTypeName } from "./common";
 
 function generateReturnType(returns: ReturnType[]) {

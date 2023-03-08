@@ -1,18 +1,22 @@
 import { readFile } from "fs-extra";
 import { globSync } from "glob";
+import { resolve } from "path";
 import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
   VU_DOCS_REPO_URL,
 } from "./config";
+import generateClassFile from "./generators/class";
 import generateEnumFile from "./generators/enum";
-import generateLibraryFile from "./generators/library";
+import parseClassFile from "./parsers/class";
 import parseEnumFile from "./parsers/enum";
 import parseEventFile from "./parsers/event";
+import parseHookFile from "./parsers/hook";
 import parseLibraryFile from "./parsers/library";
 import { downloadRepo, extractRepo } from "./repo";
 import eventTransformer from "./transformers/event";
+import { formatCode, saveDeclarationFile } from "./utils";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -28,10 +32,14 @@ async function readYamlData(filePath: string) {
   return YAML.parse(contents);
 }
 
+const hookTransformer = () => {};
+
 const pipelineMap = {
   event: { parser: parseEventFile, transformer: eventTransformer },
-  library: { parser: parseLibraryFile, generator: generateLibraryFile },
+  hook: { parser: parseHookFile, transformer: hookTransformer },
+  library: { parser: parseLibraryFile, generator: generateClassFile },
   enum: { parser: parseEnumFile, generator: generateEnumFile },
+  class: { parser: parseClassFile, generator: generateClassFile },
 };
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
@@ -39,7 +47,8 @@ const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 async function buildTypes(docsDir: string) {
   const parseResults = new Map<string, ParseResult<any>>();
 
-  const globPaths = ["*/event/*.yaml", "*/library/*.yaml"];
+  const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
+  // const globPaths = ["**/*.yaml"];
 
   const filePaths = globPaths.flatMap((globPath) =>
     globSync(pathPrefix + globPath)
@@ -105,12 +114,39 @@ async function buildTypes(docsDir: string) {
     }
   });
 
-  console.log(
-    symbolMaps.client.get("shared\\library\\Events.yaml")!.result.methods[10]
-      .params
-  );
+  // console.log(
+  //   symbolMaps.client.get("shared\\library\\Events.yaml")!.result.methods[10]
+  //     .params
+  // );
 
   // declarations generation step
+  Object.entries(symbolMaps).forEach(async ([ctx, symbolMap]) => {
+    const allCode: string[] = [];
+    for (const key of symbolMap.keys()) {
+      const parseResult = symbolMap.get(key)!;
+
+      const pipeline = pipelineMap[parseResult.type];
+      if (pipeline === undefined || !pipeline.generator) continue;
+
+      const { generator } = pipeline;
+      const code = generator(parseResult.result);
+
+      // console.log(formatCode(code));
+      allCode.push(formatCode(code));
+
+      // const matches = parseResult.filePath.match(
+      //   /VU-Docs-master\\types\\(.*)\.yaml$/i
+      // );
+      // const relPath = matches![1];
+      // const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
+      // await saveDeclarationFile(fullPath, code);
+    }
+
+    const fullPath = resolve(__dirname, `../typings/${ctx}.d.ts`);
+    console.log("i am about to save " + fullPath);
+
+    await saveDeclarationFile(fullPath, allCode.join("\n"));
+  });
 
   // console.log(parseResults);
 

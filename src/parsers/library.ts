@@ -1,25 +1,7 @@
 import RawLibraryFile from "../types/RawLibraryFile";
-import {
-  CleanCommonFile,
-  defaultParamType,
-  defaultReturnType,
-  ParamType,
-  ReturnType,
-} from "./common";
+import { CleanClassFile, defaultParamType, defaultReturnType } from "./common";
 
-export interface MethodType {
-  name: string;
-  description: string;
-  params: ParamType[];
-  returns: ReturnType[];
-}
-
-export interface CleanLibraryFile extends CleanCommonFile {
-  type: "library";
-  methods: MethodType[];
-}
-
-export default function (fileData: RawLibraryFile): CleanLibraryFile {
+export default function (fileData: RawLibraryFile): CleanClassFile {
   const methods = fileData.methods.map((method) => {
     const returns = [method.returns]
       .filter((v) => !!v)
@@ -45,7 +27,10 @@ export default function (fileData: RawLibraryFile): CleanLibraryFile {
   return {
     name: fileData.name,
     type: fileData.type,
+    declareAs: "namespace",
     description: "",
     methods,
+    properties: [],
+    operators: [],
   };
 }
