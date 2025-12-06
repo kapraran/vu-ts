@@ -1,6 +1,5 @@
-import { readFile } from "fs-extra";
-import { globSync } from "glob";
-import { resolve } from "path";
+import { Glob } from "bun";
+import { resolve, join } from "path";
 import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
@@ -28,7 +27,7 @@ export type ParseResult<T extends unknown> = {
 };
 
 async function readYamlData(filePath: string) {
-  const contents = await readFile(filePath, "utf8");
+  const contents = await Bun.file(filePath).text();
   return YAML.parse(contents);
 }
 
@@ -50,9 +49,12 @@ async function buildTypes(docsDir: string) {
   // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
   const globPaths = ["**/*.yaml"];
 
-  const filePaths = globPaths.flatMap((globPath) =>
-    globSync(pathPrefix + globPath)
-  );
+  const filePaths = globPaths.flatMap((globPath) => {
+    const glob = new Glob(globPath);
+    return Array.from(glob.scanSync({ cwd: pathPrefix })).map((file) =>
+      join(pathPrefix, file)
+    );
+  });
 
   // parsing step
   for (const filePath of filePaths) {
@@ -142,7 +144,10 @@ async function buildTypes(docsDir: string) {
       // await saveDeclarationFile(fullPath, code);
     }
 
-    const fullPath = resolve(__dirname, `../typings/${ctx}.d.ts`);
+    const fullPath = resolve(
+      import.meta.dir || __dirname,
+      `../typings/${ctx}.d.ts`
+    );
     console.log("i am about to save " + fullPath);
 
     await saveDeclarationFile(fullPath, allCode.join("\n"));

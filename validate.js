@@ -1,11 +1,9 @@
 const Ajv = require("ajv");
 const ajv = new Ajv();
 const YAML = require("yaml");
-const { readFileSync } = require("fs-extra");
-const { globSync } = require("glob");
-const { resolve } = require("path");
-const yargs = require("yargs");
-const { hideBin } = require("yargs/helpers");
+const { resolve, join } = require("path");
+const { parseArgs } = require("node:util");
+const { Glob } = require("bun");
 const TJS = require("typescript-json-schema");
 
 function cleanUp(data) {
@@ -25,26 +23,40 @@ const compilerOptions = {
 };
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
-const argv = yargs(hideBin(process.argv))
-  .usage("$0 <type>")
-  .option("ftype")
-  .array("file").argv;
+const { values: argv, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    ftype: {
+      type: "string",
+    },
+    file: {
+      type: "string",
+      multiple: true,
+    },
+  },
+  allowPositionals: true,
+});
 
+const typeName = positionals[0];
 const program = TJS.getProgramFromFiles(
-  [resolve(__dirname, `./src/types/${argv._[0]}.ts`)],
+  [resolve(__dirname, `./src/types/${typeName}.ts`)],
   compilerOptions
 );
 
-const schema = TJS.generateSchema(program, argv._[0], settings);
+const schema = TJS.generateSchema(program, typeName, settings);
 
-const files = (argv.file || []).flatMap((globPath) =>
-  globSync(pathPrefix + globPath)
-);
+const files = (argv.file || []).flatMap((globPath) => {
+  const glob = new Glob(globPath);
+  return Array.from(glob.scanSync({ cwd: pathPrefix })).map((file) =>
+    join(pathPrefix, file)
+  );
+});
 
-files.forEach((file) => {
-  const data = YAML.parse(readFileSync(file, "utf8"));
+for (const file of files) {
+  const fileContent = await Bun.file(file).text();
+  const data = YAML.parse(fileContent);
 
-  if (argv.ftype && data.type !== argv.ftype) return;
+  if (argv.ftype && data.type !== argv.ftype) continue;
 
   const valid = ajv.validate(schema, cleanUp(data));
 
@@ -53,4 +65,4 @@ files.forEach((file) => {
     console.log(ajv.errors);
     // console.log(data);
   }
-});
+}

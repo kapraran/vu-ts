@@ -1,4 +1,3 @@
-import { ensureFile, writeFile } from "fs-extra";
 import prettier from "prettier";
 
 export function formatCode(code: string): string {
@@ -11,6 +10,5 @@ export async function saveDeclarationFile(
 ): Promise<void> {
   // const formattedCode = formatCode(code);
 
-  await ensureFile(filePath);
-  await writeFile(filePath, code, "utf8");
+  await Bun.write(filePath, code);
 }

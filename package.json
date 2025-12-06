@@ -1,29 +1,16 @@
 {
   "scripts": {
-    "start": "tsup src/index.ts & node dist/index.js",
-    "dev": "npx watch \"yarn start\" ./src",
-    "validate": "node validate.js"
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "validate": "bun validate.js"
   },
   "dependencies": {
-    "@tyriar/fibonacci-heap": "^2.0.9",
     "adm-zip": "^0.5.9",
     "ajv": "^8.12.0",
-    "dsa-ts": "^2.14.0",
-    "fs-extra": "^11.1.0",
-    "glob": "^9.2.1",
-    "got": "11.8.5",
     "jsonpath-plus": "^7.2.0",
     "prettier": "^2.6.1",
     "typescript": "^4.6.3",
     "typescript-json-schema": "^0.55.0",
-    "yaml": "^2.2.1",
-    "yargs": "^17.7.1"
-  },
-  "devDependencies": {
-    "@types/adm-zip": "^0.5.0",
-    "@types/fs-extra": "^9.0.13",
-    "@types/got": "^9.6.12",
-    "@types/js-yaml": "^4.0.5",
-    "tsup": "^6.1.2"
+    "yaml": "^2.2.1"
   }
 }

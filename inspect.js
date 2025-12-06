@@ -1,15 +1,25 @@
-const yargs = require("yargs");
-const { hideBin } = require("yargs/helpers");
+const { parseArgs } = require("node:util");
+const { join } = require("path");
 const YAML = require("yaml");
-const { glob } = require("glob");
+const { Glob } = require("bun");
 const { JSONPath } = require("jsonpath-plus");
-const { readFile } = require("fs-extra");
 
-const argv = yargs(hideBin(process.argv))
-  .usage("$0 <jsonpath>")
-  .option("type")
-  .option("ftype")
-  .array("file").argv;
+const { values: argv, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    type: {
+      type: "string",
+    },
+    ftype: {
+      type: "string",
+    },
+    file: {
+      type: "string",
+      multiple: true,
+    },
+  },
+  allowPositionals: true,
+});
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 
@@ -29,13 +39,17 @@ async function main(globPaths, jsonPath) {
   const results = [];
 
   for (const globPath of globPaths) {
-    files.push(...(await glob(pathPrefix + globPath)));
+    const glob = new Glob(globPath);
+    const matches = Array.from(glob.scanSync({ cwd: pathPrefix })).map((file) =>
+      join(pathPrefix, file)
+    );
+    files.push(...matches);
   }
 
   // console.log(files);
 
   for (const filepath of files) {
-    const textContent = await readFile(filepath, "utf8");
+    const textContent = await Bun.file(filepath).text();
     const parsedObject = YAML.parse(textContent);
 
     if (argv.ftype && parsedObject.type !== argv.ftype) continue;
@@ -59,7 +73,7 @@ const globPaths = argv.file || [
   "client/library/*.yaml",
   "server/library/*.yaml",
 ];
-const jsonPath = argv._[0] || "$";
+const jsonPath = positionals[0] || "$";
 
 console.log(globPaths, jsonPath);
 
