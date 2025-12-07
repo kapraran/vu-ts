@@ -66,22 +66,8 @@ async function generateExtProject() {
   );
   console.log("Generated tsconfig.base.json");
 
-  // Generate root tsconfig.json for building all folders
-  const rootConfig = {
-    extends: "./tsconfig.base.json",
-    compilerOptions: {
-      outDir: "../ext",
-      rootDir: "ext-ts",
-    },
-    include: ["ext-ts/client/**/*", "ext-ts/server/**/*", "ext-ts/shared/**/*"],
-    exclude: ["node_modules", "typings"],
-  };
-
-  await Bun.write(
-    join(TEMPLATE_PROJECT_DIR, "tsconfig.json"),
-    JSON.stringify(rootConfig, null, 2) + "\n"
-  );
-  console.log("Generated tsconfig.json");
+  // No root tsconfig.json for building - each folder builds separately
+  // This ensures each folder gets its own lualib_bundle.lua
 
   // Generate folder-specific tsconfig.json files
   const folderConfigs = [
@@ -103,7 +89,7 @@ async function generateExtProject() {
     const config = {
       extends: "../../tsconfig.base.json",
       compilerOptions: {
-        outDir: `../../../ext/ext-ts/${folder}`,
+        outDir: `../../ext/${folder}`,
         rootDir: ".",
       },
       include: ["./**/*", "./types.d.ts"],
@@ -183,7 +169,7 @@ npm run build:server
 npm run build:shared
 \`\`\`
 
-The compiled Lua files will be output to \`../ext/\` with the same folder structure (\`ext/ext-ts/client/\`, \`ext/ext-ts/server/\`, \`ext/ext-ts/shared/\`).
+The compiled Lua files will be output to \`../ext/\` with the same folder structure (\`ext/client/\`, \`ext/server/\`, \`ext/shared/\`). Each folder gets its own \`lualib_bundle.lua\` so they are self-contained.
 
 ## Regenerating Types
 
@@ -220,8 +206,8 @@ bun start generate
     version: "1.0.0",
     description: "Venice Unleashed mod with TypeScript type safety",
     scripts: {
-      build: "tstl -p tsconfig.json",
-      "build:watch": "tstl -p tsconfig.json --watch",
+      build:
+        "tstl -p ext-ts/client/tsconfig.json && tstl -p ext-ts/server/tsconfig.json && tstl -p ext-ts/shared/tsconfig.json",
       "build:client": "tstl -p ext-ts/client/tsconfig.json",
       "build:server": "tstl -p ext-ts/server/tsconfig.json",
       "build:shared": "tstl -p ext-ts/shared/tsconfig.json",
