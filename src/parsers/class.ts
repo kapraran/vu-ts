@@ -1,4 +1,5 @@
-import RawClassFile from "../types/RawClassFile";
+// Use generated types from quicktype
+import type { RawClassFile } from "../types/generated/RawClassFile";
 import {
   CleanClassFile,
   defaultParamType,

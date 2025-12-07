@@ -8,7 +8,11 @@ export async function saveDeclarationFile(
   filePath: string,
   code: string
 ): Promise<void> {
-  // const formattedCode = formatCode(code);
+  // Add reference to TypeScriptToLua language extensions for LuaTable, LuaMultiReturn, etc.
+  const codeWithReference = `/// <reference types="@typescript-to-lua/language-extensions" />
 
-  await Bun.write(filePath, code);
+${code}`;
+  // const formattedCode = formatCode(codeWithReference);
+
+  await Bun.write(filePath, codeWithReference);
 }

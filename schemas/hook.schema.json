@@ -1,0 +1,435 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RawHookFile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "shouldCollideWith": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "bundles": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "table": {
+              "type": "boolean"
+            }
+          }
+        },
+        "compartment": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "assetName": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "hit": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "giverInfo": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "entityData": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "transform": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "blueprint": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "variation": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "parentRepresentative": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "player": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "joinMode": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "accountGuid": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "playerGuid": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "playerName": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "team": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "suppressionModifier": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "soldier": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "info": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "shooter": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "message": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "playerId": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "recipientMask": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "channelId": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "isSenderDead": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "deltaTime": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "action": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "victim": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "weapon": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "isHeadshot": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "victimId": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "killerId": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "killer": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "enable": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "cursor": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "eventType": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "screen": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "priority": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "parentGraph": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "readOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "stateNodeGuid": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "nullable": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ],
+  "additionalProperties": true
+}

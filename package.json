@@ -2,7 +2,9 @@
   "scripts": {
     "start": "bun src/index.ts",
     "dev": "bun --watch src/index.ts",
-    "validate": "bun validate.js"
+    "validate": "bun validate.js",
+    "infer-schema": "bun scripts/infer-schema.ts",
+    "yaml-to-ts": "bun scripts/yaml-to-ts-models.ts"
   },
   "dependencies": {
     "adm-zip": "^0.5.9",
@@ -12,5 +14,8 @@
     "typescript": "^4.6.3",
     "typescript-json-schema": "^0.55.0",
     "yaml": "^2.2.1"
+  },
+  "devDependencies": {
+    "@typescript-to-lua/language-extensions": "^1.19.0"
   }
 }

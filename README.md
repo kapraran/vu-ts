@@ -12,6 +12,22 @@ A TypeScript declaration file generator for VU-Docs. This tool downloads the VU-
 bun install
 ```
 
+## Setup
+
+Before generating TypeScript declarations, you need to infer the schema from YAML files:
+
+```bash
+bun run infer-schema
+```
+
+This will:
+- Scan all YAML files in the VU-Docs repository
+- Infer TypeScript interfaces for each type (class, enum, event, hook, library)
+- Generate type definitions to `src/types/generated/`
+- Generate JSON schemas for validation to `schemas/`
+
+**Note:** Run this script whenever the VU-Docs repository is updated to ensure all fields are captured.
+
 ## Usage
 
 ### Generate TypeScript declarations

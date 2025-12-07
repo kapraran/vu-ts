@@ -1,4 +1,5 @@
-import RawLibraryFile from "../types/RawLibraryFile";
+// Use generated types from quicktype
+import type { RawLibraryFile } from "../types/generated/RawLibraryFile";
 import { CleanClassFile, defaultParamType, defaultReturnType } from "./common";
 
 export default function (fileData: RawLibraryFile): CleanClassFile {

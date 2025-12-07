@@ -1,0 +1,386 @@
+import { Glob } from "bun";
+import { join } from "path";
+import YAML from "yaml";
+
+const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
+
+type FieldInfo = {
+  types: Set<string>;
+  required: boolean;
+  examples: any[];
+  description?: string;
+  nested?: Record<string, FieldInfo>;
+};
+
+type Schema = {
+  [fieldName: string]: FieldInfo;
+};
+
+type TypeSchemas = {
+  [typeName: string]: Schema;
+};
+
+function inferType(value: any): string {
+  if (value === null || value === undefined) return "null";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "any[]";
+    const itemTypes = new Set(value.map(inferType));
+    if (itemTypes.size === 1) {
+      return `${Array.from(itemTypes)[0]}[]`;
+    }
+    return "any[]";
+  }
+  if (typeof value === "object") {
+    return "object";
+  }
+  return typeof value;
+}
+
+function mergeFieldInfo(
+  existing: FieldInfo | undefined,
+  value: any,
+  isRequired: boolean
+): FieldInfo {
+  const type = inferType(value);
+  const types = existing?.types || new Set<string>();
+  types.add(type);
+
+  const examples = existing?.examples || [];
+  if (examples.length < 5) {
+    examples.push(value);
+  }
+
+  let nested: Record<string, FieldInfo> | undefined = undefined;
+  if (typeof value === "object" && !Array.isArray(value) && value !== null) {
+    nested = existing?.nested || {};
+    for (const [key, val] of Object.entries(value)) {
+      nested[key] = mergeFieldInfo(nested[key], val, false);
+    }
+  }
+
+  return {
+    types,
+    required: existing?.required !== false && isRequired,
+    examples,
+    description: existing?.description,
+    nested,
+  };
+}
+
+function inferSchema(instances: any[]): Schema {
+  const schema: Schema = {};
+  const totalInstances = instances.length;
+
+  for (const instance of instances) {
+    for (const [key, value] of Object.entries(instance)) {
+      const appearsInAll = instances.every((inst) => key in inst);
+      const existing = schema[key];
+      schema[key] = mergeFieldInfo(existing, value, appearsInAll);
+    }
+  }
+
+  // Mark fields as required if they appear in all instances
+  for (const [key, info] of Object.entries(schema)) {
+    const count = instances.filter((inst) => key in inst).length;
+    info.required = count === totalInstances;
+  }
+
+  return schema;
+}
+
+function schemaToTypeScriptType(fieldInfo: FieldInfo, fieldName: string, indent = 2): string {
+  const types = Array.from(fieldInfo.types);
+  const indentStr = " ".repeat(indent);
+  
+  // Handle nested objects (like properties, params, etc.)
+  if (fieldInfo.nested && types.includes("object")) {
+    const nestedProps = Object.entries(fieldInfo.nested)
+      .map(([key, info]) => {
+        const optional = !info.required ? "?" : "";
+        const type = schemaToTypeScriptType(info, key, indent + 2);
+        return `${indentStr}${key}${optional}: ${type};`;
+      })
+      .join("\n");
+    return `{\n${nestedProps}\n${" ".repeat(indent - 2)}}`;
+  }
+
+  // Handle arrays (like methods, constructors, operators)
+  if (types.some((t) => t.endsWith("[]"))) {
+    const arrayType = types.find((t) => t.endsWith("[]"))?.slice(0, -2) || "any";
+    // If array items are objects, generate the object type
+    if (arrayType === "object" && fieldInfo.nested) {
+      const itemType = schemaToTypeScriptType(
+        { ...fieldInfo, types: new Set(["object"]) },
+        fieldName,
+        indent
+      );
+      return `${itemType}[]`;
+    }
+    return `${arrayType}[]`;
+  }
+
+  // Handle unions (like returns which can be object or array)
+  if (types.length > 1) {
+    const cleanedTypes = types
+      .filter((t) => t !== "null" && t !== "undefined")
+      .map((t) => {
+        if (t === "object") {
+          if (fieldInfo.nested) {
+            return schemaToTypeScriptType(
+              { ...fieldInfo, types: new Set(["object"]) },
+              fieldName,
+              indent
+            );
+          }
+          return "any";
+        }
+        if (t === "string") return "string";
+        if (t === "number") return "number";
+        if (t === "boolean") return "boolean";
+        return t;
+      });
+    
+    if (types.includes("null")) {
+      return `${cleanedTypes.join(" | ")} | null`;
+    }
+    return cleanedTypes.join(" | ");
+  }
+
+  // Single type
+  const type = types[0];
+  if (type === "object") {
+    if (fieldInfo.nested) {
+      return schemaToTypeScriptType(
+        { ...fieldInfo, types: new Set(["object"]) },
+        fieldName,
+        indent
+      );
+    }
+    return "any";
+  }
+  if (type === "string") return "string";
+  if (type === "number") return "number";
+  if (type === "boolean") return "boolean";
+  if (type === "null") return "null";
+  return type;
+}
+
+function generateTypeScriptInterface(
+  typeName: string,
+  schema: Schema,
+  typeValue: string
+): string {
+  const lines: string[] = [];
+  lines.push(`/**`);
+  lines.push(` * Auto-generated interface for ${typeValue} YAML files`);
+  lines.push(` * Generated by scripts/infer-schema.ts`);
+  lines.push(` * DO NOT EDIT MANUALLY - Regenerate when YAML structure changes`);
+  lines.push(` */`);
+  lines.push(`export default interface ${typeName} {`);
+
+  for (const [fieldName, fieldInfo] of Object.entries(schema)) {
+    const optional = !fieldInfo.required ? "?" : "";
+    const type = schemaToTypeScriptType(fieldInfo, fieldName);
+    
+    // Add JSDoc if we have examples or description
+    if (fieldInfo.description || fieldInfo.examples.length > 0) {
+      lines.push(`  /**`);
+      if (fieldInfo.description) {
+        lines.push(`   * ${fieldInfo.description}`);
+      }
+      if (fieldInfo.examples.length > 0 && fieldInfo.examples.length <= 3) {
+        const exampleStr = JSON.stringify(fieldInfo.examples[0], null, 2)
+          .split("\n")
+          .map((line, i) => (i === 0 ? `   * Example: ${line}` : `   * ${line}`))
+          .join("\n");
+        lines.push(exampleStr);
+      }
+      lines.push(`   */`);
+    }
+    lines.push(`  ${fieldName}${optional}: ${type};`);
+  }
+
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function generateJSONSchema(typeName: string, schema: Schema): any {
+  const properties: Record<string, any> = {};
+  const required: string[] = [];
+
+  function inferJSONSchemaType(fieldInfo: FieldInfo, depth = 0): any {
+    const types = Array.from(fieldInfo.types);
+    
+    // Prevent infinite recursion
+    if (depth > 10) {
+      return {};
+    }
+
+    // Handle arrays
+    if (types.some((t) => t.endsWith("[]"))) {
+      const itemType = types.find((t) => t.endsWith("[]"))?.slice(0, -2) || "object";
+      if (itemType === "object" && fieldInfo.nested) {
+        return {
+          type: "array",
+          items: inferJSONSchemaType(
+            { ...fieldInfo, types: new Set(["object"]) },
+            depth + 1
+          ),
+        };
+      }
+      // Map TypeScript types to JSON Schema types
+      const jsonType = mapToJSONSchemaType(itemType);
+      return {
+        type: "array",
+        items: jsonType === null ? {} : { type: jsonType },
+      };
+    }
+
+    // Handle objects with nested structure
+    if (types.includes("object") && fieldInfo.nested) {
+      const nestedProps: Record<string, any> = {};
+      const nestedRequired: string[] = [];
+      
+      for (const [key, info] of Object.entries(fieldInfo.nested)) {
+        nestedProps[key] = inferJSONSchemaType(info, depth + 1);
+        if (info.required) {
+          nestedRequired.push(key);
+        }
+      }
+      
+      return {
+        type: "object",
+        properties: nestedProps,
+        ...(nestedRequired.length > 0 && { required: nestedRequired }),
+      };
+    }
+
+    // Handle primitive types
+    const primaryType = types[0] || "object";
+    const jsonType = mapToJSONSchemaType(primaryType);
+    
+    if (jsonType === null) {
+      // Unknown type - use empty schema (allows anything)
+      return {};
+    }
+    
+    return { type: jsonType };
+  }
+
+  function mapToJSONSchemaType(tsType: string): string | null {
+    switch (tsType) {
+      case "string":
+        return "string";
+      case "number":
+        return "number";
+      case "boolean":
+        return "boolean";
+      case "null":
+        return "null";
+      case "object":
+        return "object";
+      default:
+        // For unknown types, return null to use empty schema
+        return null;
+    }
+  }
+
+  for (const [fieldName, fieldInfo] of Object.entries(schema)) {
+    const schemaType = inferJSONSchemaType(fieldInfo);
+
+    if (fieldInfo.description) {
+      schemaType.description = fieldInfo.description;
+    }
+
+    properties[fieldName] = schemaType;
+    if (fieldInfo.required) {
+      required.push(fieldName);
+    }
+  }
+
+  return {
+    $schema: "http://json-schema.org/draft-07/schema#",
+    title: typeName,
+    type: "object",
+    properties,
+    ...(required.length > 0 && { required }),
+    additionalProperties: true, // Allow extra properties for flexibility
+  };
+}
+
+async function main() {
+  console.log("Starting schema inference...");
+
+  // Scan all YAML files
+  const glob = new Glob("**/*.yaml");
+  const filePaths = Array.from(glob.scanSync({ cwd: pathPrefix })).map((file) =>
+    join(pathPrefix, file)
+  );
+
+  console.log(`Found ${filePaths.length} YAML files`);
+
+  // Group by type
+  const instancesByType: Record<string, any[]> = {};
+
+  for (const filePath of filePaths) {
+    try {
+      const content = await Bun.file(filePath).text();
+      const data = YAML.parse(content);
+
+      if (!data.type) {
+        console.warn(`File ${filePath} has no type field, skipping`);
+        continue;
+      }
+
+      const type = data.type;
+      if (!instancesByType[type]) {
+        instancesByType[type] = [];
+      }
+
+      instancesByType[type].push(data);
+    } catch (error) {
+      console.error(`Error parsing ${filePath}:`, error);
+    }
+  }
+
+  console.log(`Found types: ${Object.keys(instancesByType).join(", ")}`);
+
+  // Infer schemas for each type
+  const schemas: TypeSchemas = {};
+
+  for (const [type, instances] of Object.entries(instancesByType)) {
+    console.log(`Inferring schema for ${type} (${instances.length} instances)...`);
+    schemas[type] = inferSchema(instances);
+  }
+
+  // Generate TypeScript interfaces
+  const generatedDir = "src/types/generated";
+  await Bun.write(join(generatedDir, ".gitkeep"), "");
+
+  for (const [type, schema] of Object.entries(schemas)) {
+    const typeName = `Raw${type.charAt(0).toUpperCase() + type.slice(1)}File`;
+    const interfaceCode = generateTypeScriptInterface(typeName, schema, type);
+    const filePath = join(generatedDir, `${typeName}.ts`);
+
+    await Bun.write(filePath, interfaceCode);
+    console.log(`Generated ${filePath}`);
+  }
+
+  // Generate JSON schemas
+  const schemasDir = "schemas";
+  await Bun.write(join(schemasDir, ".gitkeep"), "");
+
+  for (const [type, schema] of Object.entries(schemas)) {
+    const typeName = `Raw${type.charAt(0).toUpperCase() + type.slice(1)}File`;
+    const jsonSchema = generateJSONSchema(typeName, schema);
+    const filePath = join(schemasDir, `${type}.schema.json`);
+
+    await Bun.write(filePath, JSON.stringify(jsonSchema, null, 2));
+    console.log(`Generated ${filePath}`);
+  }
+
+  console.log("Schema inference complete!");
+}
+
+main().catch(console.error);
+

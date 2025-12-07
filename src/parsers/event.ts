@@ -1,4 +1,5 @@
-import RawEventFile from "../types/RawEventFile";
+// Use generated types from quicktype
+import type { RawEventFile } from "../types/generated/RawEventFile";
 import { CleanCommonFile, defaultParamType, ParamType } from "./common";
 
 export interface CleanEventFile extends CleanCommonFile {

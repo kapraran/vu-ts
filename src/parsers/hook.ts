@@ -1,4 +1,5 @@
-import RawHookFile from "../types/RawHookFile";
+// Use generated types from quicktype
+import type { RawHookFile } from "../types/generated/RawHookFile";
 import {
   CleanCommonFile,
   defaultParamType,

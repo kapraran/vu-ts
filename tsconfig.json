@@ -3,16 +3,11 @@
     "target": "ESNext",
     "module": "ESNext",
     "lib": ["ESNext"],
-    "moduleResolution": "bundler",
-    "types": ["bun-types"],
-    "strict": false,
-    "esModuleInterop": true,
+    "types": ["@typescript-to-lua/language-extensions"],
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "noEmit": true
+    "strict": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", ".cache"]
+  "include": ["typings/**/*"],
+  "exclude": ["node_modules"]
 }
+

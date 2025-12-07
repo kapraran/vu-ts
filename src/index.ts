@@ -16,6 +16,11 @@ import parseLibraryFile from "./parsers/library";
 import { downloadRepo, extractRepo } from "./repo";
 import eventTransformer from "./transformers/event";
 import { formatCode, saveDeclarationFile } from "./utils";
+import type { RawClassFile } from "./types/generated/RawClassFile";
+import type { RawEnumFile } from "./types/generated/RawEnumFile";
+import type { RawEventFile } from "./types/generated/RawEventFile";
+import type { RawHookFile } from "./types/generated/RawHookFile";
+import type { RawLibraryFile } from "./types/generated/RawLibraryFile";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -58,17 +63,40 @@ async function buildTypes(docsDir: string) {
 
   // parsing step
   for (const filePath of filePaths) {
-    const data = await readYamlData(filePath);
+    const yamlData = await readYamlData(filePath);
 
-    const pipeline = pipelineMap[data.type];
+    const pipeline = pipelineMap[yamlData.type];
     if (pipeline === undefined) continue;
 
+    // Type-check: Cast YAML data to appropriate Raw*File type
+    // The parsers will handle the actual transformation
+    let rawData: RawClassFile | RawEnumFile | RawEventFile | RawHookFile | RawLibraryFile;
+    switch (yamlData.type) {
+      case "class":
+        rawData = yamlData as RawClassFile;
+        break;
+      case "enum":
+        rawData = yamlData as RawEnumFile;
+        break;
+      case "event":
+        rawData = yamlData as RawEventFile;
+        break;
+      case "hook":
+        rawData = yamlData as RawHookFile;
+        break;
+      case "library":
+        rawData = yamlData as RawLibraryFile;
+        break;
+      default:
+        continue;
+    }
+
     const { parser } = pipeline;
-    const parseResult = parser(data);
+    const parseResult = parser(rawData);
 
     const result = {
       filePath: filePath,
-      type: data.type,
+      type: yamlData.type,
       namespace: resolveNamespace(filePath),
       result: parseResult,
     } as ParseResult<any>;

@@ -8,12 +8,14 @@ import {
 } from "../parsers/common";
 import { fixParamName, fixTypeName } from "./common";
 
-const opMapping = {
+const opMapping: Record<string, string> = {
   add: "LuaAdditionMethod",
   sub: "LuaSubtractionMethod",
   mult: "LuaMultiplicationMethod",
   div: "LuaDivisionMethod",
-  lt: "LuaLessThanMethod",
+  // Note: eq and lt might not have Method versions in TypeScriptToLua
+  // They may need to be handled as standalone functions or not supported
+  // lt: "LuaLessThanMethod", // Uncomment if TypeScriptToLua supports this
 };
 
 function sortMethods(a: MethodType, b: MethodType) {
@@ -48,10 +50,20 @@ function generatePropertyCode(p: PropType) {
   }`;
 }
 
-function generateOperatorCode(op: OperatorType, data: CleanClassFile) {
-  return `${op.type}: ${opMapping[op.type]}<${data.name}, ${fixTypeName(
-    op.rhs
-  )}>`;
+function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {
+  const operatorType = opMapping[op.type];
+  if (!operatorType) {
+    console.warn(`Unknown operator type: ${op.type} for ${data.name}`);
+    return "";
+  }
+  
+  const rhsType = fixTypeName(op.rhs);
+  
+  // Generate helper method using TypeScriptToLua operator mapping
+  // Method version takes 2 type params: <Self, RHS>
+  // Example: add: LuaAdditionMethod<Vec3, Vec3>
+  // Usage: vec3.add(other) transpiles to vec3 + other in Lua
+  return `${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
 }
 
 function generateMethodCode(m: MethodType, data: CleanClassFile) {
@@ -66,17 +78,29 @@ function generateParamsCode(m: MethodType, data: CleanClassFile) {
 
 function generateParamCode(p: ParamType, data: CleanClassFile) {
   // TODO p.table
-  return `${p.variadic ? "..." : ""}${fixParamName(p.name)}: ${fixTypeName(
+  // In .d.ts files, default values are not allowed. Make parameter optional instead.
+  // Check if parameter has a default value (including empty string, 0, false, etc.)
+  const hasDefault = p.default !== undefined && p.default !== null;
+  return `${p.variadic ? "..." : ""}${fixParamName(p.name)}${hasDefault ? "?" : ""}: ${fixTypeName(
     p.type
-  )} ${p.nullable ? "| null" : ""} ${
-    p.default && data.declareAs !== "namespace" ? `= ${p.default}` : ""
-  }`;
+  )} ${p.nullable ? "| null" : ""}`;
 }
 
 export default function (data: CleanClassFile) {
+  // Check if class has constructors
+  const hasConstructors = data.methods.some((m) => m.name === "constructor");
+  
+  // Add @customConstructor annotation for all classes with constructors
+  // This tells TypeScriptToLua to call the constructor directly (e.g., Vec3(1,2,3))
+  // instead of using __TS__New (which expects a ____constructor method)
+  // If a class doesn't need this annotation, TypeScriptToLua will ignore it
+  const customConstructorAnnotation = hasConstructors
+    ? `/** @customConstructor ${data.name} */\n  `
+    : "";
+
   return `
 
-  declare ${data.declareAs} ${data.name} ${
+  ${customConstructorAnnotation}declare ${data.declareAs} ${data.name} ${
     data.inherits ? `extends ${data.inherits}` : ""
   } {
 
@@ -87,7 +111,10 @@ export default function (data: CleanClassFile) {
       .map((m) => generateMethodCode(m, data))
       .join(";\n")}
 
-      // data.operators.map((op) => generateOperatorCode(op, data))
+    ${data.operators
+      .map((op) => generateOperatorCode(op, data))
+      .filter((code) => code.length > 0)
+      .join(";\n")}
   }
   
   `;
