@@ -17,6 +17,7 @@ export default function (
   const eventFile = parseResult.result;
 
   // Build callback signature from event parameters
+  // Add 'this: void' as first parameter to prevent tstl from adding implicit self parameter
   const callbackParams = eventFile.params.map((param) => {
     const type = fixTypeName(param.type);
     const nullable = param.nullable ? "| null" : "";
@@ -26,8 +27,8 @@ export default function (
   }).join(", ");
 
   const callbackType = eventFile.params.length > 0
-    ? `(${callbackParams}) => void`
-    : `() => void`;
+    ? `(this: void, ${callbackParams}) => void`
+    : `(this: void) => void`;
 
   const params = [
     {
