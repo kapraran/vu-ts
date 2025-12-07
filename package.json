@@ -1,6 +1,7 @@
 {
   "scripts": {
     "start": "bun src/index.ts",
+    "generate": "bun src/index.ts generate",
     "dev": "bun --watch src/index.ts",
     "validate": "bun validate.js",
     "infer-schema": "bun scripts/infer-schema.ts",

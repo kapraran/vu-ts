@@ -21,6 +21,7 @@ import type { RawEnumFile } from "./types/generated/RawEnumFile";
 import type { RawEventFile } from "./types/generated/RawEventFile";
 import type { RawHookFile } from "./types/generated/RawHookFile";
 import type { RawLibraryFile } from "./types/generated/RawLibraryFile";
+import generateExtProject from "./generators/ext-project";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -195,9 +196,17 @@ async function buildTypes(docsDir: string) {
 }
 
 async function main() {
+  const command = process.argv[2];
+
+  // Always generate types first
   await downloadRepo(VU_DOCS_REPO_URL, REPO_ZIP_DL_DIR);
   await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR);
   await buildTypes(REPO_ZIP_EXTRACT_DIR);
+
+  // If "generate" command is provided, also generate the ext project
+  if (command === "generate") {
+    await generateExtProject();
+  }
 }
 
 main();
