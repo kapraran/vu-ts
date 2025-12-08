@@ -9,6 +9,8 @@ export const REPO_ZIP_DL_DIR = resolve(CACHE_DIR, "master.zip");
 
 export const REPO_ZIP_EXTRACT_DIR = resolve(CACHE_DIR, "extracted");
 
+export const CACHE_METADATA_PATH = resolve(CACHE_DIR, "cache.json");
+
 export const VUNamespaces = ["fb", "shared", "client", "server"];
 
 export const VUSubDirs = ["type", "library", "event", "hook"];

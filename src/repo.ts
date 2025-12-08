@@ -1,10 +1,69 @@
 import AdmZip from "adm-zip";
+import { CACHE_METADATA_PATH } from "./config";
+import { existsSync } from "fs";
+
+interface CacheMetadata {
+  downloadCommit?: string;
+  extractCommit?: string;
+}
+
+async function readCacheMetadata(): Promise<CacheMetadata> {
+  try {
+    if (!existsSync(CACHE_METADATA_PATH)) {
+      return {};
+    }
+    const content = await Bun.file(CACHE_METADATA_PATH).text();
+    return JSON.parse(content) as CacheMetadata;
+  } catch (error) {
+    // If cache file is corrupted or missing, treat as cache miss
+    return {};
+  }
+}
+
+async function writeCacheMetadata(metadata: CacheMetadata): Promise<void> {
+  try {
+    await Bun.write(CACHE_METADATA_PATH, JSON.stringify(metadata, null, 2) + "\n");
+  } catch (error) {
+    // Silently fail - cache write errors shouldn't block the script
+    console.warn(`Warning: Failed to write cache metadata: ${error}`);
+  }
+}
+
+export async function getLatestCommitHash(): Promise<string | null> {
+  try {
+    const response = await fetch(
+      "https://api.github.com/repos/EmulatorNexus/VU-Docs/commits/master"
+    );
+    if (!response.ok) {
+      console.warn(`Warning: Failed to fetch commit hash: ${response.statusText}`);
+      return null;
+    }
+    const data = await response.json();
+    return data.sha as string;
+  } catch (error) {
+    console.warn(`Warning: Failed to fetch commit hash: ${error}`);
+    return null;
+  }
+}
 
 export async function downloadRepo(
   repoUrl: string,
-  outPath: string
+  outPath: string,
+  commitHash: string | null
 ): Promise<void> {
-  if (await Bun.file(outPath).exists()) return;
+  // Check cache if we have a commit hash
+  if (commitHash) {
+    const cache = await readCacheMetadata();
+    const fileExists = await Bun.file(outPath).exists();
+    
+    if (fileExists && cache.downloadCommit === commitHash) {
+      console.log(`Skipping download - cache hit for commit ${commitHash.substring(0, 7)}`);
+      return;
+    }
+  } else {
+    // Fallback to simple existence check if no commit hash
+    if (await Bun.file(outPath).exists()) return;
+  }
 
   console.log(`Downloading repo "${repoUrl}" in "${outPath}"`);
 
@@ -15,16 +74,43 @@ export async function downloadRepo(
 
   const arrayBuffer = await response.arrayBuffer();
   await Bun.write(outPath, arrayBuffer);
+
+  // Only update cache after successful download
+  if (commitHash) {
+    const cache = await readCacheMetadata();
+    cache.downloadCommit = commitHash;
+    await writeCacheMetadata(cache);
+  }
 }
 
 export async function extractRepo(
   zipPath: string,
-  outPath: string
+  outPath: string,
+  commitHash: string | null
 ): Promise<void> {
-  if (await Bun.file(outPath).exists()) return;
+  // Check cache if we have a commit hash
+  if (commitHash) {
+    const cache = await readCacheMetadata();
+    const dirExists = existsSync(outPath);
+    
+    if (dirExists && cache.extractCommit === commitHash) {
+      console.log(`Skipping extraction - cache hit for commit ${commitHash.substring(0, 7)}`);
+      return;
+    }
+  } else {
+    // Fallback to simple existence check if no commit hash
+    if (existsSync(outPath)) return;
+  }
 
   console.log(`Extracting repo zip file "${zipPath}" in "${outPath}"`);
 
   const zip = new AdmZip(zipPath);
   zip.extractAllTo(outPath, true);
+
+  // Only update cache after successful extraction
+  if (commitHash) {
+    const cache = await readCacheMetadata();
+    cache.extractCommit = commitHash;
+    await writeCacheMetadata(cache);
+  }
 }

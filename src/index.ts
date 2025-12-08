@@ -13,7 +13,7 @@ import parseEnumFile from "./parsers/enum";
 import parseEventFile from "./parsers/event";
 import parseHookFile from "./parsers/hook";
 import parseLibraryFile from "./parsers/library";
-import { downloadRepo, extractRepo } from "./repo";
+import { downloadRepo, extractRepo, getLatestCommitHash } from "./repo";
 import eventTransformer from "./transformers/event";
 import { formatCode, saveDeclarationFile } from "./utils";
 import type { RawClassFile } from "./types/generated/RawClassFile";
@@ -198,9 +198,12 @@ async function buildTypes(docsDir: string) {
 async function main() {
   const command = process.argv[2];
 
+  // Get latest commit hash once at the start
+  const commitHash = await getLatestCommitHash();
+
   // Always generate types first
-  await downloadRepo(VU_DOCS_REPO_URL, REPO_ZIP_DL_DIR);
-  await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR);
+  await downloadRepo(VU_DOCS_REPO_URL, REPO_ZIP_DL_DIR, commitHash);
+  await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR, commitHash);
   await buildTypes(REPO_ZIP_EXTRACT_DIR);
 
   // If "generate" command is provided, also generate the ext project
