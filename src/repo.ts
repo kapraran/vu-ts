@@ -57,15 +57,22 @@ export async function downloadRepo(
     const fileExists = await Bun.file(outPath).exists();
     
     if (fileExists && cache.downloadCommit === commitHash) {
-      console.log(`Skipping download - cache hit for commit ${commitHash.substring(0, 7)}`);
+      console.log(`   ✓ Download cached (commit ${commitHash.substring(0, 7)})`);
       return;
+    }
+    if (fileExists && cache.downloadCommit) {
+      console.log(`   ⬇  Downloading (new commit: ${commitHash.substring(0, 7)})...`);
+    } else {
+      console.log(`   ⬇  Downloading repository...`);
     }
   } else {
     // Fallback to simple existence check if no commit hash
-    if (await Bun.file(outPath).exists()) return;
+    if (await Bun.file(outPath).exists()) {
+      console.log(`   ✓ Download cached`);
+      return;
+    }
+    console.log(`   ⬇  Downloading repository...`);
   }
-
-  console.log(`Downloading repo "${repoUrl}" in "${outPath}"`);
 
   const response = await fetch(repoUrl);
   if (!response.ok) {
@@ -74,6 +81,7 @@ export async function downloadRepo(
 
   const arrayBuffer = await response.arrayBuffer();
   await Bun.write(outPath, arrayBuffer);
+  console.log(`   ✓ Download complete`);
 
   // Only update cache after successful download
   if (commitHash) {
@@ -94,18 +102,26 @@ export async function extractRepo(
     const dirExists = existsSync(outPath);
     
     if (dirExists && cache.extractCommit === commitHash) {
-      console.log(`Skipping extraction - cache hit for commit ${commitHash.substring(0, 7)}`);
+      console.log(`   ✓ Extraction cached (commit ${commitHash.substring(0, 7)})`);
       return;
+    }
+    if (dirExists) {
+      console.log(`   📂 Extracting (updated content)...`);
+    } else {
+      console.log(`   📂 Extracting archive...`);
     }
   } else {
     // Fallback to simple existence check if no commit hash
-    if (existsSync(outPath)) return;
+    if (existsSync(outPath)) {
+      console.log(`   ✓ Extraction cached`);
+      return;
+    }
+    console.log(`   📂 Extracting archive...`);
   }
-
-  console.log(`Extracting repo zip file "${zipPath}" in "${outPath}"`);
 
   const zip = new AdmZip(zipPath);
   zip.extractAllTo(outPath, true);
+  console.log(`   ✓ Extraction complete`);
 
   // Only update cache after successful extraction
   if (commitHash) {

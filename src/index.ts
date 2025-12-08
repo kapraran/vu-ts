@@ -62,6 +62,8 @@ async function buildTypes(docsDir: string) {
     );
   });
 
+  console.log(`   Parsing ${filePaths.length} YAML files...`);
+
   // parsing step
   for (const filePath of filePaths) {
     const yamlData = await readYamlData(filePath);
@@ -177,9 +179,9 @@ async function buildTypes(docsDir: string) {
       import.meta.dir || __dirname,
       `../typings/${ctx}.d.ts`
     );
-    console.log("i am about to save " + fullPath);
 
     await saveDeclarationFile(fullPath, allCode.join("\n"));
+    console.log(`   ✓ Generated typings/${ctx}.d.ts`);
   });
 
   // console.log(parseResults);
@@ -191,25 +193,37 @@ async function buildTypes(docsDir: string) {
 
   //   await saveDeclarationFile(fullPath, result.source);
   // });
-
-  console.log("the-end");
 }
 
 async function main() {
   const command = process.argv[2];
 
+  console.log("🚀 Starting VU TypeScript type generation...\n");
+
   // Get latest commit hash once at the start
+  console.log("📡 Checking repository status...");
   const commitHash = await getLatestCommitHash();
+  if (commitHash) {
+    console.log(`   Latest commit: ${commitHash.substring(0, 7)}\n`);
+  } else {
+    console.log("   (Using fallback cache check)\n");
+  }
 
   // Always generate types first
+  console.log("📦 Repository sync:");
   await downloadRepo(VU_DOCS_REPO_URL, REPO_ZIP_DL_DIR, commitHash);
   await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR, commitHash);
+  
+  console.log("\n🔨 Generating type definitions...");
   await buildTypes(REPO_ZIP_EXTRACT_DIR);
 
   // If "generate" command is provided, also generate the ext project
   if (command === "generate") {
+    console.log("\n📁 Generating mod template...");
     await generateExtProject();
   }
+
+  console.log("\n✅ Done!");
 }
 
 main();

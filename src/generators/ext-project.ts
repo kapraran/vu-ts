@@ -7,8 +7,6 @@ const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, "vu-ts-mod-template");
 const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
 
 async function generateExtProject() {
-  console.log("Generating vu-ts-mod-template project structure...");
-
   // Create directory structure
   const dirs = [
     TEMPLATE_PROJECT_DIR,
@@ -19,11 +17,15 @@ async function generateExtProject() {
     join(EXT_TS_DIR, "shared"),
   ];
 
+  let createdDirs = 0;
   for (const dir of dirs) {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
-      console.log(`Created directory: ${dir}`);
+      createdDirs++;
     }
+  }
+  if (createdDirs > 0) {
+    console.log(`   ✓ Created ${createdDirs} directories`);
   }
 
   // Copy typings files
@@ -31,6 +33,7 @@ async function generateExtProject() {
   const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, "typings");
 
   const typingFiles = ["client.d.ts", "server.d.ts", "shared.d.ts"];
+  let copiedFiles = 0;
   for (const file of typingFiles) {
     const sourcePath = join(typingsDir, file);
     const destPath = join(templateTypingsDir, file);
@@ -38,10 +41,13 @@ async function generateExtProject() {
     if (existsSync(sourcePath)) {
       const content = await Bun.file(sourcePath).text();
       await Bun.write(destPath, content);
-      console.log(`Copied ${file} to vu-ts-mod-template/typings/`);
+      copiedFiles++;
     } else {
-      console.warn(`Warning: ${file} not found in typings directory`);
+      console.warn(`   ⚠ Warning: ${file} not found in typings directory`);
     }
+  }
+  if (copiedFiles > 0) {
+    console.log(`   ✓ Copied ${copiedFiles} typing files`);
   }
 
   // Generate tsconfig.base.json
@@ -64,7 +70,6 @@ async function generateExtProject() {
     join(TEMPLATE_PROJECT_DIR, "tsconfig.base.json"),
     JSON.stringify(baseConfig, null, 2) + "\n"
   );
-  console.log("Generated tsconfig.base.json");
 
   // No root tsconfig.json for building - each folder builds separately
   // This ensures each folder gets its own lualib_bundle.lua
@@ -99,7 +104,6 @@ async function generateExtProject() {
       join(EXT_TS_DIR, folder, "tsconfig.json"),
       JSON.stringify(config, null, 2) + "\n"
     );
-    console.log(`Generated ext-ts/${folder}/tsconfig.json`);
 
     // Generate types.d.ts with references to typings in root typings/
     const typeReferences = types
@@ -110,15 +114,14 @@ async function generateExtProject() {
       join(EXT_TS_DIR, folder, "types.d.ts"),
       typeReferences + "\n"
     );
-    console.log(`Generated ext-ts/${folder}/types.d.ts`);
 
     // Create __init__.ts if it doesn't exist
     const initPath = join(EXT_TS_DIR, folder, "__init__.ts");
     if (!existsSync(initPath)) {
       await Bun.write(initPath, "");
-      console.log(`Created ext-ts/${folder}/__init__.ts`);
     }
   }
+  console.log(`   ✓ Generated TypeScript configs for ${folderConfigs.length} folders`);
 
   // Generate README.md
   const readme = `# Mod Template
@@ -181,7 +184,6 @@ bun start generate
 `;
 
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "README.md"), readme);
-  console.log("Generated README.md");
 
   // Generate mod.json
   const modJson = {
@@ -198,7 +200,6 @@ bun start generate
     join(TEMPLATE_PROJECT_DIR, "mod.json"),
     JSON.stringify(modJson, null, 2) + "\n"
   );
-  console.log("Generated mod.json");
 
   // Generate package.json
   const packageJson = {
@@ -223,12 +224,9 @@ bun start generate
     join(TEMPLATE_PROJECT_DIR, "package.json"),
     JSON.stringify(packageJson, null, 2) + "\n"
   );
-  console.log("Generated package.json");
-
-  console.log(
-    "\n✅ vu-ts-mod-template project structure generated successfully!"
-  );
-  console.log(`   Location: ${TEMPLATE_PROJECT_DIR}`);
+  
+  console.log(`   ✓ Generated project files (README.md, mod.json, package.json)`);
+  console.log(`   ✓ Template ready at: ${TEMPLATE_PROJECT_DIR}`);
 }
 
 export default generateExtProject;
