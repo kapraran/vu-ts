@@ -65,19 +65,23 @@ function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {
   }
 
   // Unsupported operators (eq, lt) - TypeScriptToLua doesn't support these as operator methods
-  // However, you CAN use them by casting to any: (vec3 as any) == (otherVec3 as any)
-  // This transpiles to: vec3 == otherVec3 in Lua, which will use __eq/__lt metatables if defined
+  // Generate instance methods with @customName annotation to rename them in Lua
+  // Usage: a.eq(b) in TypeScript transpiles to a:__eq(b) in Lua
+  // The @customName annotation renames the method to __eq/__lt in Lua
+  // These work as Lua's relational metamethods (__eq, __lt)
+  // See: https://www.lua.org/pil/13.2.html
+  // See: https://typescripttolua.github.io/docs/advanced/compiler-annotations/#customname
   const rhsType = fixTypeName(op.rhs);
   const returnType = fixTypeName(op.returns);
 
   if (op.type === "eq") {
-    // To use Lua's __eq metatable: (a as any) == (b as any)
-    // This transpiles to: a == b in Lua
-    return `/** Use: (a as any) == (b as any) to access Lua __eq metatable */\n    static __luaEq(a: ${data.name}, b: ${rhsType}): ${returnType};`;
+    // Instance method for equality comparison
+    // Usage: a.eq(b) in TypeScript transpiles to a:__eq(b) in Lua
+    return `/** @customName __eq */\n    eq(other: ${rhsType}): ${returnType};`;
   } else if (op.type === "lt") {
-    // To use Lua's __lt metatable: (a as any) < (b as any)
-    // This transpiles to: a < b in Lua
-    return `/** Use: (a as any) < (b as any) to access Lua __lt metatable */\n    static __luaLt(a: ${data.name}, b: ${rhsType}): ${returnType};`;
+    // Instance method for less-than comparison
+    // Usage: a.lt(b) in TypeScript transpiles to a:__lt(b) in Lua
+    return `/** @customName __lt */\n    lt(other: ${rhsType}): ${returnType};`;
   }
 
   return "";
