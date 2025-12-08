@@ -54,34 +54,27 @@ function generatePropertyCode(p: PropType) {
 
 function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {
   const operatorType = opMapping[op.type];
-  if (operatorType) {
-    // Supported operator - generate TypeScriptToLua operator method
-    const rhsType = fixTypeName(op.rhs);
-    // Generate helper method using TypeScriptToLua operator mapping
-    // Method version takes 2 type params: <Self, RHS>
-    // Example: add: LuaAdditionMethod<Vec3, Vec3>
-    // Usage: vec3.add(other) transpiles to vec3 + other in Lua
-    return `${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
-  }
-
-  // Unsupported operators (eq, lt) - TypeScriptToLua doesn't support these as operator methods
-  // Generate instance methods with @customName annotation to rename them in Lua
-  // Usage: a.eq(b) in TypeScript transpiles to a:__eq(b) in Lua
-  // The @customName annotation renames the method to __eq/__lt in Lua
-  // These work as Lua's relational metamethods (__eq, __lt)
-  // See: https://www.lua.org/pil/13.2.html
-  // See: https://typescripttolua.github.io/docs/advanced/compiler-annotations/#customname
   const rhsType = fixTypeName(op.rhs);
   const returnType = fixTypeName(op.returns);
 
+  if (operatorType) {
+    // Supported operator - generate TypeScriptToLua operator method
+    const operatorNames: Record<string, string> = {
+      add: "+",
+      sub: "-",
+      mult: "*",
+      div: "/",
+    };
+    const operatorSymbol = operatorNames[op.type] || op.type;
+    
+    return `/**\n     * ${op.type === "add" ? "Addition" : op.type === "sub" ? "Subtraction" : op.type === "mult" ? "Multiplication" : "Division"} operator.\n     * @param other The right-hand side operand\n     * @returns The result of ${data.name} ${operatorSymbol} ${rhsType}\n     * @example\n     * const a = ${data.name}(1, 2, 3);\n     * const b = ${data.name}(4, 5, 6);\n     * const result = a.${op.type}(b); // Transpiles to: a ${operatorSymbol} b\n     */\n    ${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
+  }
+
+  // Unsupported operators (eq, lt) - TypeScriptToLua doesn't support these as operator methods
   if (op.type === "eq") {
-    // Instance method for equality comparison
-    // Usage: a.eq(b) in TypeScript transpiles to a:__eq(b) in Lua
-    return `/** @customName __eq */\n    eq(other: ${rhsType}): ${returnType};`;
+    return `/**\n     * Equality comparison operator.\n     * Compares this ${data.name} with another ${rhsType} for equality.\n     * @param other The right-hand side operand to compare against\n     * @returns \`true\` if both operands are equal, \`false\` otherwise\n     * @example\n     * const a = ${data.name}(1, 2, 3);\n     * const b = ${data.name}(1, 2, 3);\n     * if (a.eq(b)) { // Transpiles to: if a:__eq(b) then\n     *   print("Equal");\n     * }\n     * @see https://www.lua.org/pil/13.2.html\n     * @customName __eq\n     */\n    eq(other: ${rhsType}): ${returnType};`;
   } else if (op.type === "lt") {
-    // Instance method for less-than comparison
-    // Usage: a.lt(b) in TypeScript transpiles to a:__lt(b) in Lua
-    return `/** @customName __lt */\n    lt(other: ${rhsType}): ${returnType};`;
+    return `/**\n     * Less-than comparison operator.\n     * Compares this ${data.name} with another ${rhsType} using less-than comparison.\n     * @param other The right-hand side operand to compare against\n     * @returns \`true\` if this operand is less than the other, \`false\` otherwise\n     * @example\n     * const a = ${data.name}(1, 2, 3);\n     * const b = ${data.name}(4, 5, 6);\n     * if (a.lt(b)) { // Transpiles to: if a:__lt(b) then\n     *   print("a is less than b");\n     * }\n     * @see https://www.lua.org/pil/13.2.html\n     * @customName __lt\n     */\n    lt(other: ${rhsType}): ${returnType};`;
   }
 
   return "";
