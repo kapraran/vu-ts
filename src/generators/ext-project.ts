@@ -161,25 +161,30 @@ To compile TypeScript to Lua, use:
 
 \`\`\`bash
 # Build all folders (client, server, shared)
-npm run build
+bun run build
 
-# Build with watch mode
-npm run build:watch
+# Watch mode - rebuilds all folders on file changes
+bun run watch
 
 # Build individual folders
-npm run build:client
-npm run build:server
-npm run build:shared
+bun run build:client
+bun run build:server
+bun run build:shared
+
+# Watch individual folders
+bun run watch:client
+bun run watch:server
+bun run watch:shared
 \`\`\`
 
 The compiled Lua files will be output to \`../ext/\` with the same folder structure (\`ext/client/\`, \`ext/server/\`, \`ext/shared/\`). Each folder gets its own \`lualib_bundle.lua\` so they are self-contained.
 
 ## Regenerating Types
 
-To refresh the type definitions, run the generator command from the root of the vu-ts-tmp project:
+To refresh the type definitions, run the generator command:
 
 \`\`\`bash
-bun start generate
+bunx vu-ts generate
 \`\`\`
 `;
 
@@ -201,6 +206,44 @@ bun start generate
     JSON.stringify(modJson, null, 2) + "\n"
   );
 
+  // Generate watch.ts script
+  const watchScript = `#!/usr/bin/env bun
+
+// Watch script that runs all three TypeScriptToLua watch processes in parallel
+const processes = [
+  Bun.spawn(["tstl", "-p", "ext-ts/client/tsconfig.json", "--watch"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  }),
+  Bun.spawn(["tstl", "-p", "ext-ts/server/tsconfig.json", "--watch"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  }),
+  Bun.spawn(["tstl", "-p", "ext-ts/shared/tsconfig.json", "--watch"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  }),
+];
+
+console.log("👀 Watching client, server, and shared folders...");
+console.log("Press Ctrl+C to stop\\n");
+
+// Handle graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("\\n🛑 Stopping watch processes...");
+  for (const proc of processes) {
+    proc.kill();
+  }
+  await Promise.all(processes.map((p) => p.exited));
+  process.exit(0);
+});
+
+// Wait for all processes (they run indefinitely in watch mode)
+await Promise.all(processes.map((p) => p.exited));
+`;
+
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchScript);
+
   // Generate package.json
   const packageJson = {
     name: "vu-mod",
@@ -212,6 +255,10 @@ bun start generate
       "build:client": "tstl -p ext-ts/client/tsconfig.json",
       "build:server": "tstl -p ext-ts/server/tsconfig.json",
       "build:shared": "tstl -p ext-ts/shared/tsconfig.json",
+      watch: "bun watch.ts",
+      "watch:client": "tstl -p ext-ts/client/tsconfig.json --watch",
+      "watch:server": "tstl -p ext-ts/server/tsconfig.json --watch",
+      "watch:shared": "tstl -p ext-ts/shared/tsconfig.json --watch",
     },
     dependencies: {
       "@typescript-to-lua/language-extensions": "^1.19.0",
@@ -224,8 +271,14 @@ bun start generate
     join(TEMPLATE_PROJECT_DIR, "package.json"),
     JSON.stringify(packageJson, null, 2) + "\n"
   );
+
+  // Generate .gitignore
+  const gitignore = `node_modules/
+ext/
+`;
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, ".gitignore"), gitignore);
   
-  console.log(`   ✓ Generated project files (README.md, mod.json, package.json)`);
+  console.log(`   ✓ Generated project files (watch.ts, README.md, mod.json, package.json, .gitignore)`);
   console.log(`   ✓ Template ready at: ${TEMPLATE_PROJECT_DIR}`);
 }
 

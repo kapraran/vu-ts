@@ -1,5 +1,6 @@
 import { Glob } from "bun";
 import { resolve, join } from "path";
+import { mkdirSync, existsSync } from "fs";
 import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
@@ -49,7 +50,12 @@ const pipelineMap = {
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 
-async function buildTypes(docsDir: string) {
+export interface MainOptions {
+  outputDir?: string;
+  generateTemplate?: boolean;
+}
+
+async function buildTypes(docsDir: string, outputDir?: string) {
   const parseResults = new Map<string, ParseResult<any>>();
 
   // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
@@ -153,7 +159,16 @@ async function buildTypes(docsDir: string) {
   // );
 
   // declarations generation step
-  Object.entries(symbolMaps).forEach(async ([ctx, symbolMap]) => {
+  const typingsBaseDir = outputDir
+    ? resolve(outputDir)
+    : resolve(import.meta.dir || __dirname, "../typings");
+
+  // Ensure output directory exists
+  if (!existsSync(typingsBaseDir)) {
+    mkdirSync(typingsBaseDir, { recursive: true });
+  }
+
+  for (const [ctx, symbolMap] of Object.entries(symbolMaps)) {
     const allCode: string[] = [];
     for (const key of symbolMap.keys()) {
       const parseResult = symbolMap.get(key)!;
@@ -175,14 +190,14 @@ async function buildTypes(docsDir: string) {
       // await saveDeclarationFile(fullPath, code);
     }
 
-    const fullPath = resolve(
-      import.meta.dir || __dirname,
-      `../typings/${ctx}.d.ts`
-    );
+    const fullPath = resolve(typingsBaseDir, `${ctx}.d.ts`);
 
     await saveDeclarationFile(fullPath, allCode.join("\n"));
-    console.log(`   ✓ Generated typings/${ctx}.d.ts`);
-  });
+    const relativePath = outputDir
+      ? `${outputDir}/${ctx}.d.ts`
+      : `typings/${ctx}.d.ts`;
+    console.log(`   ✓ Generated ${relativePath}`);
+  }
 
   // console.log(parseResults);
 
@@ -195,8 +210,8 @@ async function buildTypes(docsDir: string) {
   // });
 }
 
-async function main() {
-  const command = process.argv[2];
+export async function main(options: MainOptions = {}) {
+  const { outputDir, generateTemplate = false } = options;
 
   console.log("🚀 Starting VU TypeScript type generation...\n");
 
@@ -215,18 +230,16 @@ async function main() {
   await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR, commitHash);
   
   console.log("\n🔨 Generating type definitions...");
-  await buildTypes(REPO_ZIP_EXTRACT_DIR);
+  await buildTypes(REPO_ZIP_EXTRACT_DIR, outputDir);
 
-  // If "generate" command is provided, also generate the ext project
-  if (command === "generate") {
+  // If generateTemplate is true, also generate the ext project
+  if (generateTemplate) {
     console.log("\n📁 Generating mod template...");
     await generateExtProject();
   }
 
   console.log("\n✅ Done!");
 }
-
-main();
 function resolveNamespace(filePath: string): typeNamespace {
   if (filePath.match(/VU-Docs-master\\types\\client/i)) return "client";
   if (filePath.match(/VU-Docs-master\\types\\server/i)) return "server";

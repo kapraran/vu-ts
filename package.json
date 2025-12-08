@@ -1,4 +1,9 @@
 {
+  "name": "vu-ts",
+  "version": "1.0.0",
+  "bin": {
+    "vu-ts": "./src/cli.ts"
+  },
   "scripts": {
     "start": "bun src/index.ts",
     "generate": "bun src/index.ts generate",
