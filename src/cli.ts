@@ -9,6 +9,7 @@ interface CliOptions {
   version?: boolean;
   output?: string;
   generate?: boolean;
+  modName?: string;
 }
 
 function parseArgs(): CliOptions {
@@ -31,6 +32,10 @@ function parseArgs(): CliOptions {
       }
     } else if (arg === "generate") {
       options.generate = true;
+      // Check if next argument is a mod name (not a flag)
+      if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
+        options.modName = args[++i];
+      }
     } else {
       console.error(`Error: Unknown argument: ${arg}`);
       console.error("Run with --help for usage information");
@@ -53,7 +58,8 @@ USAGE:
     bunx vu-ts [OPTIONS] [COMMAND]
 
 COMMANDS:
-    generate              Generate both type definitions and mod template project
+    generate [name]       Generate both type definitions and mod template project
+                          If [name] is provided, creates a folder with that name
                           (default: generates only type definitions)
 
 OPTIONS:
@@ -66,6 +72,7 @@ EXAMPLES:
     bunx vu-ts                           Generate types to ./typings
     bunx vu-ts --output ./types          Generate types to ./types
     bunx vu-ts generate                  Generate types and mod template
+    bunx vu-ts generate my-mod           Generate types and mod template in ./my-mod folder
     bunx vu-ts --output ./custom generate Generate types to ./custom and template
 
 OUTPUT:
@@ -75,7 +82,8 @@ OUTPUT:
     - typings/shared.d.ts    (shared types)
 
     When using 'generate' command, also creates:
-    - vu-ts-mod-template/   (mod template project structure)
+    - [mod-name]/   (mod template project structure)
+      If mod name is provided, uses that name. Otherwise uses default name.
 `;
   console.log(helpText.trim());
 }
@@ -108,6 +116,7 @@ async function run() {
   await main({
     outputDir: options.output,
     generateTemplate: options.generate || false,
+    modName: options.modName,
   });
 }
 

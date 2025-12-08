@@ -1,12 +1,32 @@
 import { resolve, join } from "path";
 import { existsSync, mkdirSync } from "fs";
 
-// Get the project root (two levels up from src/generators)
-const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, "vu-ts-mod-template");
-const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
+export function checkTemplateFolderExists(modName?: string): boolean {
+  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
+  const folderName = modName || "vu-ts-mod-template";
+  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
+  return existsSync(TEMPLATE_PROJECT_DIR);
+}
 
-async function generateExtProject() {
+export function getTemplateFolderPath(modName?: string): string {
+  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
+  const folderName = modName || "vu-ts-mod-template";
+  return join(PROJECT_ROOT, folderName);
+}
+
+async function generateExtProject(modName?: string) {
+  // Get the project root (two levels up from src/generators)
+  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
+  const folderName = modName || "vu-ts-mod-template";
+  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
+  const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
+
+  // Check if folder already exists (safety check - should have been checked earlier)
+  if (existsSync(TEMPLATE_PROJECT_DIR)) {
+    console.error(`\n❌ Error: Folder "${folderName}" already exists!`);
+    console.error(`   Please choose a different name or remove the existing folder.`);
+    process.exit(1);
+  }
   // Create directory structure
   const dirs = [
     TEMPLATE_PROJECT_DIR,
@@ -191,9 +211,10 @@ bunx vu-ts generate
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "README.md"), readme);
 
   // Generate mod.json
+  const modDisplayName = modName || "My first mod";
   const modJson = {
-    Name: "My first mod",
-    Description: "This is my first VU mod!",
+    Name: modDisplayName,
+    Description: `A Venice Unleashed mod built with TypeScript`,
     Version: "1.0.0",
     HasVeniceEXT: true,
     Dependencies: {
@@ -245,8 +266,9 @@ await Promise.all(processes.map((p) => p.exited));
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchScript);
 
   // Generate package.json
+  const packageName = modName ? `vu-mod-${modName.toLowerCase().replace(/\s+/g, "-")}` : "vu-mod";
   const packageJson = {
-    name: "vu-mod",
+    name: packageName,
     version: "1.0.0",
     description: "Venice Unleashed mod with TypeScript type safety",
     scripts: {

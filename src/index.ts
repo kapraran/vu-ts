@@ -22,7 +22,7 @@ import type { RawEnumFile } from "./types/generated/RawEnumFile";
 import type { RawEventFile } from "./types/generated/RawEventFile";
 import type { RawHookFile } from "./types/generated/RawHookFile";
 import type { RawLibraryFile } from "./types/generated/RawLibraryFile";
-import generateExtProject from "./generators/ext-project";
+import generateExtProject, { checkTemplateFolderExists } from "./generators/ext-project";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -53,6 +53,7 @@ const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
 export interface MainOptions {
   outputDir?: string;
   generateTemplate?: boolean;
+  modName?: string;
 }
 
 async function buildTypes(docsDir: string, outputDir?: string) {
@@ -211,7 +212,15 @@ async function buildTypes(docsDir: string, outputDir?: string) {
 }
 
 export async function main(options: MainOptions = {}) {
-  const { outputDir, generateTemplate = false } = options;
+  const { outputDir, generateTemplate = false, modName } = options;
+
+  // Check if template folder exists BEFORE doing any work
+  if (generateTemplate && checkTemplateFolderExists(modName)) {
+    const folderName = modName || "vu-ts-mod-template";
+    console.error(`\n❌ Error: Folder "${folderName}" already exists!`);
+    console.error(`   Please choose a different name or remove the existing folder.`);
+    process.exit(1);
+  }
 
   console.log("🚀 Starting VU TypeScript type generation...\n");
 
@@ -235,7 +244,7 @@ export async function main(options: MainOptions = {}) {
   // If generateTemplate is true, also generate the ext project
   if (generateTemplate) {
     console.log("\n📁 Generating mod template...");
-    await generateExtProject();
+    await generateExtProject(modName);
   }
 
   console.log("\n✅ Done!");
