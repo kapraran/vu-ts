@@ -13,10 +13,12 @@ const opMapping: Record<string, string> = {
   sub: "LuaSubtractionMethod",
   mult: "LuaMultiplicationMethod",
   div: "LuaDivisionMethod",
-  // Note: eq and lt might not have Method versions in TypeScriptToLua
-  // They may need to be handled as standalone functions or not supported
-  // lt: "LuaLessThanMethod", // Uncomment if TypeScriptToLua supports this
 };
+
+// Note: eq (==) and lt (<) operators are not supported by TypeScriptToLua
+// See: https://typescripttolua.github.io/docs/advanced/language-extensions/#supported-operators
+// These operators exist in the YAML docs but cannot be generated as TypeScript operators
+// They are silently skipped during generation
 
 function sortMethods(a: MethodType, b: MethodType) {
   return a.name > b.name ? 1 : -1;
@@ -52,18 +54,33 @@ function generatePropertyCode(p: PropType) {
 
 function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {
   const operatorType = opMapping[op.type];
-  if (!operatorType) {
-    console.warn(`Unknown operator type: ${op.type} for ${data.name}`);
-    return "";
+  if (operatorType) {
+    // Supported operator - generate TypeScriptToLua operator method
+    const rhsType = fixTypeName(op.rhs);
+    // Generate helper method using TypeScriptToLua operator mapping
+    // Method version takes 2 type params: <Self, RHS>
+    // Example: add: LuaAdditionMethod<Vec3, Vec3>
+    // Usage: vec3.add(other) transpiles to vec3 + other in Lua
+    return `${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
   }
-  
+
+  // Unsupported operators (eq, lt) - TypeScriptToLua doesn't support these as operator methods
+  // However, you CAN use them by casting to any: (vec3 as any) == (otherVec3 as any)
+  // This transpiles to: vec3 == otherVec3 in Lua, which will use __eq/__lt metatables if defined
   const rhsType = fixTypeName(op.rhs);
-  
-  // Generate helper method using TypeScriptToLua operator mapping
-  // Method version takes 2 type params: <Self, RHS>
-  // Example: add: LuaAdditionMethod<Vec3, Vec3>
-  // Usage: vec3.add(other) transpiles to vec3 + other in Lua
-  return `${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
+  const returnType = fixTypeName(op.returns);
+
+  if (op.type === "eq") {
+    // To use Lua's __eq metatable: (a as any) == (b as any)
+    // This transpiles to: a == b in Lua
+    return `/** Use: (a as any) == (b as any) to access Lua __eq metatable */\n    static __luaEq(a: ${data.name}, b: ${rhsType}): ${returnType};`;
+  } else if (op.type === "lt") {
+    // To use Lua's __lt metatable: (a as any) < (b as any)
+    // This transpiles to: a < b in Lua
+    return `/** Use: (a as any) < (b as any) to access Lua __lt metatable */\n    static __luaLt(a: ${data.name}, b: ${rhsType}): ${returnType};`;
+  }
+
+  return "";
 }
 
 function generateMethodCode(m: MethodType, data: CleanClassFile) {
@@ -81,15 +98,15 @@ function generateParamCode(p: ParamType, data: CleanClassFile) {
   // In .d.ts files, default values are not allowed. Make parameter optional instead.
   // Check if parameter has a default value (including empty string, 0, false, etc.)
   const hasDefault = p.default !== undefined && p.default !== null;
-  return `${p.variadic ? "..." : ""}${fixParamName(p.name)}${hasDefault ? "?" : ""}: ${fixTypeName(
-    p.type
-  )} ${p.nullable ? "| null" : ""}`;
+  return `${p.variadic ? "..." : ""}${fixParamName(p.name)}${
+    hasDefault ? "?" : ""
+  }: ${fixTypeName(p.type)} ${p.nullable ? "| null" : ""}`;
 }
 
 export default function (data: CleanClassFile) {
   // Check if class has constructors
   const hasConstructors = data.methods.some((m) => m.name === "constructor");
-  
+
   // Add @customConstructor annotation for all classes with constructors
   // This tells TypeScriptToLua to call the constructor directly (e.g., Vec3(1,2,3))
   // instead of using __TS__New (which expects a ____constructor method)
