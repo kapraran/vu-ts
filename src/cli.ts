@@ -10,6 +10,8 @@ interface CliOptions {
   output?: string;
   generate?: boolean;
   modName?: string;
+  rm?: boolean;
+  refresh?: boolean;
 }
 
 function parseArgs(): CliOptions {
@@ -36,6 +38,10 @@ function parseArgs(): CliOptions {
       if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
         options.modName = args[++i];
       }
+    } else if (arg === "--rm") {
+      options.rm = true;
+    } else if (arg === "--refresh") {
+      options.refresh = true;
     } else {
       console.error(`Error: Unknown argument: ${arg}`);
       console.error("Run with --help for usage information");
@@ -65,6 +71,10 @@ COMMANDS:
 OPTIONS:
     --output, -o <dir>    Specify output directory for generated type definitions
                           (default: ./typings)
+    --rm                  When used with 'generate', delete existing folder if it exists
+    --refresh             Refresh existing output: overwrite all generated files
+                          (preserves __init__.ts files in client/server/shared)
+                          Requires output directory to exist
     --help, -h            Show this help message
     --version, -v         Show version number
 
@@ -73,6 +83,9 @@ EXAMPLES:
     bunx vu-ts --output ./types          Generate types to ./types
     bunx vu-ts generate                  Generate types and mod template
     bunx vu-ts generate my-mod           Generate types and mod template in ./my-mod folder
+    bunx vu-ts generate --rm              Generate types and mod template, remove existing folder
+    bunx vu-ts --refresh                 Refresh types in ./typings (overwrites existing)
+    bunx vu-ts generate --refresh         Refresh types and template (preserves __init__.ts files)
     bunx vu-ts --output ./custom generate Generate types to ./custom and template
 
 OUTPUT:
@@ -117,6 +130,8 @@ async function run() {
     outputDir: options.output,
     generateTemplate: options.generate || false,
     modName: options.modName,
+    rm: options.rm,
+    refresh: options.refresh,
   });
 }
 

@@ -1,31 +1,56 @@
 import { resolve, join } from "path";
 import { existsSync, mkdirSync } from "fs";
 
-export function checkTemplateFolderExists(modName?: string): boolean {
+export function checkTemplateFolderExists(modName?: string, outputDir?: string): boolean {
+  // If outputDir is specified, use it directly as the template folder
+  // Otherwise, create vu-ts-mod-template in project root
+  if (outputDir) {
+    return existsSync(resolve(outputDir));
+  }
   const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
   const folderName = modName || "vu-ts-mod-template";
   const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
   return existsSync(TEMPLATE_PROJECT_DIR);
 }
 
-export function getTemplateFolderPath(modName?: string): string {
+export function getTemplateFolderPath(modName?: string, outputDir?: string): string {
+  // If outputDir is specified, use it directly as the template folder
+  // Otherwise, create vu-ts-mod-template in project root
+  if (outputDir) {
+    return resolve(outputDir);
+  }
   const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
   const folderName = modName || "vu-ts-mod-template";
   return join(PROJECT_ROOT, folderName);
 }
 
-async function generateExtProject(modName?: string) {
-  // Get the project root (two levels up from src/generators)
-  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-  const folderName = modName || "vu-ts-mod-template";
-  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
+async function generateExtProject(modName?: string, refresh: boolean = false, outputDir?: string) {
+  // If outputDir is specified, use it directly as the template folder
+  // Otherwise, create vu-ts-mod-template in project root
+  const TEMPLATE_PROJECT_DIR = outputDir 
+    ? resolve(outputDir) 
+    : join(resolve(import.meta.dir || __dirname, "../.."), modName || "vu-ts-mod-template");
   const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
 
   // Check if folder already exists (safety check - should have been checked earlier)
-  if (existsSync(TEMPLATE_PROJECT_DIR)) {
-    console.error(`\n❌ Error: Folder "${folderName}" already exists!`);
+  // Skip this check in refresh mode
+  if (existsSync(TEMPLATE_PROJECT_DIR) && !refresh) {
+    console.error(`\n❌ Error: Folder "${TEMPLATE_PROJECT_DIR}" already exists!`);
     console.error(`   Please choose a different name or remove the existing folder.`);
     process.exit(1);
+  }
+
+  // In refresh mode, preserve __init__.ts files
+  const preservedInitFiles: Record<string, string> = {};
+  if (refresh) {
+    const folders = ["client", "server", "shared"];
+    for (const folder of folders) {
+      const initPath = join(EXT_TS_DIR, folder, "__init__.ts");
+      if (existsSync(initPath)) {
+        const content = await Bun.file(initPath).text();
+        preservedInitFiles[folder] = content;
+      }
+    }
   }
   // Create directory structure
   const dirs = [
@@ -48,26 +73,21 @@ async function generateExtProject(modName?: string) {
     console.log(`   ✓ Created ${createdDirs} directories`);
   }
 
-  // Copy typings files
-  const typingsDir = join(PROJECT_ROOT, "typings");
+  // Typings are already generated in the template's typings folder when generateTemplate is true
+  // So we don't need to copy them. Just verify they exist.
   const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, "typings");
-
   const typingFiles = ["client.d.ts", "server.d.ts", "shared.d.ts"];
-  let copiedFiles = 0;
+  let foundFiles = 0;
   for (const file of typingFiles) {
-    const sourcePath = join(typingsDir, file);
     const destPath = join(templateTypingsDir, file);
-
-    if (existsSync(sourcePath)) {
-      const content = await Bun.file(sourcePath).text();
-      await Bun.write(destPath, content);
-      copiedFiles++;
+    if (existsSync(destPath)) {
+      foundFiles++;
     } else {
       console.warn(`   ⚠ Warning: ${file} not found in typings directory`);
     }
   }
-  if (copiedFiles > 0) {
-    console.log(`   ✓ Copied ${copiedFiles} typing files`);
+  if (foundFiles > 0) {
+    console.log(`   ✓ Typings already in place (${foundFiles} files)`);
   }
 
   // Generate tsconfig.base.json
@@ -87,6 +107,7 @@ async function generateExtProject(modName?: string) {
     exclude: ["node_modules"],
   };
 
+  // Always overwrite tsconfig.base.json (even in refresh mode)
   await Bun.write(
     join(TEMPLATE_PROJECT_DIR, "tsconfig.base.json"),
     JSON.stringify(baseConfig, null, 2) + "\n"
@@ -126,6 +147,7 @@ async function generateExtProject(modName?: string) {
       include: ["./**/*", "./types.d.ts"],
     };
 
+    // Always overwrite tsconfig.json and types.d.ts (even in refresh mode)
     await Bun.write(
       join(EXT_TS_DIR, folder, "tsconfig.json"),
       JSON.stringify(config, null, 2) + "\n"
@@ -141,13 +163,17 @@ async function generateExtProject(modName?: string) {
       typeReferences + "\n"
     );
 
-    // Create __init__.ts if it doesn't exist
+    // Create __init__.ts if it doesn't exist, or restore preserved content in refresh mode
     const initPath = join(EXT_TS_DIR, folder, "__init__.ts");
-    if (!existsSync(initPath)) {
+    if (refresh && preservedInitFiles[folder] !== undefined) {
+      // Restore preserved content
+      await Bun.write(initPath, preservedInitFiles[folder]);
+    } else if (!existsSync(initPath)) {
       await Bun.write(initPath, "");
     }
   }
-  console.log(`   ✓ Generated TypeScript configs for ${folderConfigs.length} folders`);
+  const configAction = refresh ? "Refreshed" : "Generated";
+  console.log(`   ✓ ${configAction} TypeScript configs for ${folderConfigs.length} folders`);
 
   // Generate tstl-plugin.js
   const pluginContent = `const path = require("path");
@@ -371,11 +397,13 @@ const plugin = {
 module.exports = plugin;
 `;
 
+  // Always overwrite tstl-plugin.js (even in refresh mode)
   await Bun.write(
     join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"),
     pluginContent
   );
-  console.log(`   ✓ Generated tstl-plugin.js`);
+  const pluginAction = refresh ? "Refreshed" : "Generated";
+  console.log(`   ✓ ${pluginAction} tstl-plugin.js`);
 
   // Generate README.md
   const readme = `# Mod Template
@@ -442,9 +470,10 @@ bunx vu-ts generate
 \`\`\`
 `;
 
+  // Always overwrite README.md (even in refresh mode)
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "README.md"), readme);
 
-  // Generate mod.json
+  // Generate mod.json (always overwrite)
   const modDisplayName = modName || "My first mod";
   const modJson = {
     Name: modDisplayName,
@@ -497,9 +526,10 @@ process.on("SIGINT", async () => {
 await Promise.all(processes.map((p) => p.exited));
 `;
 
+  // Always overwrite watch.ts (even in refresh mode)
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchScript);
 
-  // Generate package.json
+  // Generate package.json (always overwrite)
   const packageName = modName ? `vu-mod-${modName.toLowerCase().replace(/\s+/g, "-")}` : "vu-mod";
   const packageJson = {
     name: packageName,
@@ -532,9 +562,14 @@ await Promise.all(processes.map((p) => p.exited));
   const gitignore = `node_modules/
 ext/
 `;
+  // Always overwrite .gitignore (even in refresh mode)
   await Bun.write(join(TEMPLATE_PROJECT_DIR, ".gitignore"), gitignore);
   
-  console.log(`   ✓ Generated project files (watch.ts, README.md, mod.json, package.json, .gitignore)`);
+  const filesAction = refresh ? "Refreshed" : "Generated";
+  console.log(`   ✓ ${filesAction} project files (watch.ts, README.md, mod.json, package.json, .gitignore)`);
+  if (refresh) {
+    console.log(`   ✓ Preserved __init__.ts files in client/server/shared`);
+  }
   console.log(`   ✓ Template ready at: ${TEMPLATE_PROJECT_DIR}`);
 }
 
