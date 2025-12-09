@@ -3,7 +3,7 @@ declare namespace json {
   export function decode(data: string): {};
 }
 
-declare class vector<T> extends LuaIterable<T> {
+declare interface vector<T> extends LuaIterable<T> {
   [index: number]: T;
   length: LuaLengthMethod<number>;
   add(value: T): void;
