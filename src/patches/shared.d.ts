@@ -4,6 +4,8 @@ declare namespace json {
 }
 
 declare class vector<T> extends LuaIterable<T> {
+  [index: number]: T;
+  length: LuaLengthMethod<number>;
   add(value: T): void;
   insert(index: number, value: T): void;
   erase(index: number): void;
