@@ -8,5 +8,5 @@ declare class vector<T> extends LuaIterable<T> {
   insert(index: number, value: T): void;
   erase(index: number): void;
   clear(): void;
-  index_of(value: T): void;
+  index_of(value: T): number;
 }

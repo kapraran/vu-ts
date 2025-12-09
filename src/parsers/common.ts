@@ -53,6 +53,7 @@ export interface PropType {
   readOnly: boolean;
   nullable: boolean;
   table: boolean;
+  array: boolean;
   static: boolean;
 }
 
@@ -63,6 +64,7 @@ export const defaultPropType = {
   readOnly: false,
   nullable: false,
   table: false,
+  array: false,
   static: false,
 };
 

@@ -16,6 +16,7 @@ import parseHookFile from "./parsers/hook";
 import parseLibraryFile from "./parsers/library";
 import { downloadRepo, extractRepo, getLatestCommitHash } from "./repo";
 import eventTransformer from "./transformers/event";
+import hookTransformer from "./transformers/hook";
 import { formatCode, saveDeclarationFile } from "./utils";
 import type { RawClassFile } from "./types/generated/RawClassFile";
 import type { RawEnumFile } from "./types/generated/RawEnumFile";
@@ -37,8 +38,6 @@ async function readYamlData(filePath: string) {
   const contents = await Bun.file(filePath).text();
   return YAML.parse(contents);
 }
-
-const hookTransformer = () => {};
 
 const pipelineMap = {
   event: { parser: parseEventFile, transformer: eventTransformer },
@@ -192,8 +191,16 @@ async function buildTypes(docsDir: string, outputDir?: string) {
     }
 
     const fullPath = resolve(typingsBaseDir, `${ctx}.d.ts`);
+    
+    // Include patch content for shared.d.ts
+    let finalCode = allCode.join("\n");
+    if (ctx === "shared") {
+      const patchPath = resolve(import.meta.dir || __dirname, "./patches/shared.d.ts");
+      const patchContent = await Bun.file(patchPath).text();
+      finalCode = patchContent + "\n\n" + finalCode;
+    }
 
-    await saveDeclarationFile(fullPath, allCode.join("\n"));
+    await saveDeclarationFile(fullPath, finalCode);
     const relativePath = outputDir
       ? `${outputDir}/${ctx}.d.ts`
       : `typings/${ctx}.d.ts`;

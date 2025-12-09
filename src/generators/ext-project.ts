@@ -82,6 +82,7 @@ async function generateExtProject(modName?: string) {
     },
     tstl: {
       luaTarget: "5.1",
+      luaPlugins: [{ name: "../../tstl-plugin.js" }],
     },
     exclude: ["node_modules"],
   };
@@ -115,7 +116,12 @@ async function generateExtProject(modName?: string) {
       extends: "../../tsconfig.base.json",
       compilerOptions: {
         outDir: `../../ext/${folder}`,
-        rootDir: ".",
+        baseUrl: ".",
+        ...(folder !== "shared" && {
+          paths: {
+            "@shared/*": ["../shared/*"],
+          },
+        }),
       },
       include: ["./**/*", "./types.d.ts"],
     };
@@ -142,6 +148,234 @@ async function generateExtProject(modName?: string) {
     }
   }
   console.log(`   ✓ Generated TypeScript configs for ${folderConfigs.length} folders`);
+
+  // Generate tstl-plugin.js
+  const pluginContent = `const path = require("path");
+const fs = require("fs");
+
+/**
+ * TypeScriptToLua plugin that adds __shared/ prefix to all require paths
+ * that resolve to files in the ext-ts/shared/ directory.
+ * 
+ * This ensures that all imports from shared code use the __shared/ prefix
+ * in the generated Lua code, even when importing from within shared itself.
+ */
+const plugin = {
+  beforeEmit(program, options, emitHost, result) {
+    console.log("[TSTL Plugin] afterPrint called");
+    console.log("  Processing", result.length, "files");
+    
+    for (const file of result) {
+      // Only process files that are in the shared output directory
+      const outputPath = file.outputPath || "";
+      console.log("  Processing file:", outputPath);
+      
+      // Check if this file is in the shared output directory
+      // The output path should be something like: ext/shared/__init__.lua
+      const isSharedOutput = /[\\/]ext[\\/]shared[\\/]/i.test(outputPath) || 
+                             /[\\/]shared[\\/]/i.test(outputPath);
+      
+      if (isSharedOutput) {
+        console.log("  -> File is in shared output, modifying require statements");
+        
+        // Find all require statements for shared modules and add __shared/ prefix
+        // Pattern: require("module_name") or require('module_name')
+        // We need to be careful not to modify lualib_bundle or other special requires
+        file.code = file.code.replace(
+          /require\\s*\\(\\s*["']([^"']+)["']\\s*\\)/g,
+          (match, moduleName) => {
+            // Skip if already has __shared/ prefix
+            if (moduleName.startsWith("__shared/")) {
+              console.log("    -> Already has __shared/ prefix:", moduleName);
+              return match;
+            }
+            
+            // Skip special modules
+            if (moduleName === "lualib_bundle" || 
+                moduleName.startsWith("lualib_bundle") ||
+                moduleName.includes("node_modules")) {
+              console.log("    -> Skipping special module:", moduleName);
+              return match;
+            }
+            
+            // Remove relative path prefixes (./ or ../) before adding __shared/
+            let cleanModuleName = moduleName;
+            if (cleanModuleName.startsWith("./")) {
+              cleanModuleName = cleanModuleName.substring(2);
+              console.log("    -> Removed ./ prefix:", cleanModuleName);
+            } else if (cleanModuleName.startsWith("../")) {
+              // For ../ paths, we need to resolve them relative to the current file
+              // But for simplicity, just remove the ../ and use the module name
+              // This assumes the require is for a file in the same shared directory
+              cleanModuleName = cleanModuleName.replace(/^\\.\\.\\//g, "");
+              console.log("    -> Removed ../ prefix:", cleanModuleName);
+            }
+            
+            // Convert dot notation to forward slashes (e.g., "shared.test" -> "shared/test")
+            cleanModuleName = cleanModuleName.replace(/\\./g, "/");
+            
+            // Add the __shared/ prefix
+            const newModuleName = \`__shared/\${cleanModuleName}\`;
+            console.log("    -> Transforming:", moduleName, "->", newModuleName);
+            return match.replace(moduleName, newModuleName);
+          }
+        );
+      } else {
+        console.log("  -> File is not in shared output, skipping");
+      }
+    }
+  },
+  
+  moduleResolution(
+    moduleIdentifier,
+    requiringFile,
+    options,
+    emitHost
+  ) {
+    // Normalize paths
+    const normalizedRequiringFile = path.normalize(requiringFile);
+    
+    // Check if the requiring file is in ext-ts/shared/
+    const requiringFileInShared = /[\\/]ext-ts[\\/]shared[\\/]/i.test(normalizedRequiringFile);
+    
+    // If the requiring file is not in shared, don't transform
+    if (!requiringFileInShared) {
+      return undefined;
+    }
+    
+    // Try to resolve the module path
+    let resolvedPath;
+    
+    // If it's a relative import (starts with . or ..)
+    if (moduleIdentifier.startsWith(".") || moduleIdentifier.startsWith("..")) {
+      // Resolve relative to the requiring file
+      const dir = path.dirname(normalizedRequiringFile);
+      resolvedPath = path.resolve(dir, moduleIdentifier);
+      
+      // Try common TypeScript extensions
+      const extensions = [".ts", ".tsx", ".d.ts"];
+      let found = false;
+      for (const ext of extensions) {
+        const withExt = resolvedPath + ext;
+        if (fs.existsSync(withExt)) {
+          resolvedPath = withExt;
+          found = true;
+          break;
+        }
+      }
+      
+      // If not found with extension, check if it's a directory with index file
+      if (!found && fs.existsSync(resolvedPath)) {
+        const stat = fs.statSync(resolvedPath);
+        if (stat.isDirectory()) {
+          for (const ext of extensions) {
+            const indexFile = path.join(resolvedPath, \`index\${ext}\`);
+            if (fs.existsSync(indexFile)) {
+              resolvedPath = indexFile;
+              found = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      // If still not found, try without extension (might be resolved by TSTL)
+      if (!found && !fs.existsSync(resolvedPath)) {
+        // Try to find the file by checking common patterns
+        for (const ext of extensions) {
+          const withExt = resolvedPath + ext;
+          if (fs.existsSync(withExt)) {
+            resolvedPath = withExt;
+            found = true;
+            break;
+          }
+        }
+      }
+    } else {
+      // For non-relative imports, try to resolve them relative to shared directory
+      // This handles cases where TSTL has already resolved to a simple name
+      const sharedDirMatch = normalizedRequiringFile.match(/(.+[\\/]ext-ts[\\/]shared)[\\/]/i);
+      if (sharedDirMatch) {
+        const sharedDir = sharedDirMatch[1];
+        resolvedPath = path.join(sharedDir, moduleIdentifier);
+        
+        // Try extensions
+        const extensions = [".ts", ".tsx", ".d.ts"];
+        let found = false;
+        for (const ext of extensions) {
+          const withExt = resolvedPath + ext;
+          if (fs.existsSync(withExt)) {
+            resolvedPath = withExt;
+            found = true;
+            break;
+          }
+        }
+        
+        // Check directory with index
+        if (!found && fs.existsSync(resolvedPath)) {
+          const stat = fs.statSync(resolvedPath);
+          if (stat.isDirectory()) {
+            for (const ext of extensions) {
+              const indexFile = path.join(resolvedPath, \`index\${ext}\`);
+              if (fs.existsSync(indexFile)) {
+                resolvedPath = indexFile;
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (!found) {
+          resolvedPath = undefined;
+        }
+      }
+    }
+    
+    if (!resolvedPath) {
+      return undefined;
+    }
+    
+    // Normalize the resolved path
+    const normalizedResolvedPath = path.normalize(resolvedPath);
+    
+    // Check if the resolved file is in the ext-ts/shared/ directory
+    const sharedPattern = /[\\/]ext-ts[\\/]shared[\\/]/i;
+    
+    if (sharedPattern.test(normalizedResolvedPath)) {
+      // Extract the relative path from ext-ts/shared/
+      const sharedMatch = normalizedResolvedPath.match(/[\\/]ext-ts[\\/]shared[\\/](.+)$/i);
+      
+      if (sharedMatch) {
+        let relativePath = sharedMatch[1];
+        
+        // Remove the file extension if present (.ts, .tsx, .d.ts, etc.)
+        relativePath = relativePath.replace(/\\.(d\\.)?(ts|tsx)$/, "");
+        
+        // Handle index files - remove /index from the path
+        relativePath = relativePath.replace(/[\\/]index$/, "");
+        
+        // Convert path separators to forward slashes for Lua require
+        const luaPath = relativePath.replace(/\\\\/g, "/");
+        
+        // Add the __shared/ prefix
+        return \`__shared/\${luaPath}\`;
+      }
+    }
+
+    // Return undefined to fall back to default resolution
+    return undefined;
+  },
+};
+
+module.exports = plugin;
+`;
+
+  await Bun.write(
+    join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"),
+    pluginContent
+  );
+  console.log(`   ✓ Generated tstl-plugin.js`);
 
   // Generate README.md
   const readme = `# Mod Template

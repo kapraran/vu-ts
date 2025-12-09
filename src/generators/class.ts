@@ -29,13 +29,20 @@ function generateReturnsCode(m: MethodType) {
   if (m.returns.length === 0) return ": void";
 
   const returnsStr = m.returns
-    .map((r) => [
-      r,
-      `${fixTypeName(r.type)} ${r.array ? "[]" : ""} ${
-        r.nullable ? "| null" : ""
-      }`,
-    ])
-    .map(([r, rstr]) => ((r as ReturnType).table ? `LuaTable<${rstr}>` : rstr))
+    .map((r) => {
+      const baseType = fixTypeName(r.type);
+      const nullable = r.nullable ? "| null" : "";
+      
+      // Handle array types - use vector<T> instead of T[]
+      if (r.array) {
+        const vectorType = `vector<${baseType}${nullable}>`;
+        return (r as ReturnType).table ? `LuaTable<${vectorType}>` : vectorType;
+      }
+      
+      // Handle non-array types
+      const typeStr = `${baseType}${nullable}`;
+      return (r as ReturnType).table ? `LuaTable<${typeStr}>` : typeStr;
+    })
     .join(", ");
 
   return (
@@ -45,11 +52,20 @@ function generateReturnsCode(m: MethodType) {
 }
 
 function generatePropertyCode(p: PropType) {
+  const baseType = fixTypeName(p.type);
+  const nullable = p.nullable ? "| null" : "";
+  
+  // Handle array types - use vector<T> instead of T[]
+  let typeStr: string;
+  if (p.array) {
+    typeStr = `vector<${baseType}${nullable}>`;
+  } else {
+    typeStr = `${baseType}${p.table ? "[]" : ""}${nullable}`;
+  }
+  
   return `${p.static ? "static" : ""} ${p.readOnly ? "readonly" : ""} ${
     p.name
-  }: ${fixTypeName(p.type)} ${p.table ? "[]" : ""}${
-    p.nullable ? "| null" : ""
-  }`;
+  }: ${typeStr}`;
 }
 
 function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {

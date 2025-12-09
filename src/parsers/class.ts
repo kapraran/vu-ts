@@ -71,6 +71,7 @@ export default function (data: RawClassFile): CleanClassFile {
     type: "class",
     declareAs: "class",
     description: data.description || "",
+    inherits: data.inherits,
     properties: properties.concat(_static),
     operators: data.operators || [],
     methods: methods.concat(constructors),
