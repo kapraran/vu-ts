@@ -16,6 +16,16 @@ export default function (
     .result as CleanClassFile;
   const eventFile = parseResult.result;
 
+  // Remove generic Subscribe methods that accept eventName: string
+  // These interfere with type validation by allowing any string
+  eventsLib.methods = eventsLib.methods.filter(method => {
+    if (method.name !== "Subscribe") return true;
+
+    // Check if this is a generic Subscribe method with eventName: string
+    const eventNameParam = method.params?.find(p => p.name === "eventName");
+    return eventNameParam?.type !== "string";
+  });
+
   // Build callback signature from event parameters
   // Add 'this: void' as first parameter to prevent tstl from adding implicit self parameter
   const callbackParams = eventFile.params.map((param) => {

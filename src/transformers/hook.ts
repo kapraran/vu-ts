@@ -16,6 +16,16 @@ export default function (
     .result as CleanClassFile;
   const hookFile = parseResult.result;
 
+  // Remove generic Install methods that accept hookName: string
+  // These interfere with type validation by allowing any string
+  hooksLib.methods = hooksLib.methods.filter(method => {
+    if (method.name !== "Install") return true;
+
+    // Check if this is a generic Install method with hookName: string
+    const hookNameParam = method.params?.find(p => p.name === "hookName");
+    return hookNameParam?.type !== "string";
+  });
+
   // Build callback signature from hook parameters
   // Add 'this: void' as first parameter to prevent tstl from adding implicit self parameter
   // hookCtx: HookContext is always the first parameter after 'this: void'
@@ -27,23 +37,13 @@ export default function (
     return `${fixParamName(param.name)}: ${finalType}${nullable}`;
   }).join(", ");
 
-  // Build callback return type from hook's return type
-  let returnType = "void";
-  if (hookFile.returns) {
-    const type = fixTypeName(hookFile.returns.type);
-    const nullable = hookFile.returns.nullable ? "| null" : "";
-    // Handle table return types - wrap in LuaTable if needed
-    returnType = hookFile.returns.table
-      ? `LuaTable<string, ${type}>${nullable}`
-      : `${type}${nullable}`;
-  }
-
   // Build callback type with hookCtx as first parameter after 'this: void'
+  // Callbacks always return void
   let callbackType: string;
   if (hookFile.params.length > 0) {
-    callbackType = `(this: void, hookCtx: HookContext, ${hookParams}) => ${returnType}`;
+    callbackType = `(this: void, hookCtx: HookContext, ${hookParams}) => void`;
   } else {
-    callbackType = `(this: void, hookCtx: HookContext) => ${returnType}`;
+    callbackType = `(this: void, hookCtx: HookContext) => void`;
   }
 
   const params = [
