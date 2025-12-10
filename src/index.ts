@@ -17,13 +17,17 @@ import parseLibraryFile from "./parsers/library";
 import { downloadRepo, extractRepo, getLatestCommitHash } from "./repo";
 import eventTransformer from "./transformers/event";
 import hookTransformer from "./transformers/hook";
+import classTransformer from "./transformers/class";
 import { formatCode, saveDeclarationFile } from "./utils";
 import type { RawClassFile } from "./types/generated/RawClassFile";
 import type { RawEnumFile } from "./types/generated/RawEnumFile";
 import type { RawEventFile } from "./types/generated/RawEventFile";
 import type { RawHookFile } from "./types/generated/RawHookFile";
 import type { RawLibraryFile } from "./types/generated/RawLibraryFile";
-import generateExtProject, { checkTemplateFolderExists, getTemplateFolderPath } from "./generators/ext-project";
+import generateExtProject, {
+  checkTemplateFolderExists,
+  getTemplateFolderPath,
+} from "./generators/ext-project";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -44,7 +48,11 @@ const pipelineMap = {
   hook: { parser: parseHookFile, transformer: hookTransformer },
   library: { parser: parseLibraryFile, generator: generateClassFile },
   enum: { parser: parseEnumFile, generator: generateEnumFile },
-  class: { parser: parseClassFile, generator: generateClassFile },
+  class: {
+    parser: parseClassFile,
+    transformer: classTransformer,
+    generator: generateClassFile,
+  },
 };
 
 const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
@@ -57,7 +65,12 @@ export interface MainOptions {
   refresh?: boolean;
 }
 
-async function buildTypes(docsDir: string, outputDir?: string, generateTemplate?: boolean) {
+async function buildTypes(
+  docsDir: string,
+  outputDir?: string,
+  generateTemplate?: boolean,
+  templateTypingsDir?: string
+) {
   const parseResults = new Map<string, ParseResult<any>>();
 
   // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
@@ -81,7 +94,12 @@ async function buildTypes(docsDir: string, outputDir?: string, generateTemplate?
 
     // Type-check: Cast YAML data to appropriate Raw*File type
     // The parsers will handle the actual transformation
-    let rawData: RawClassFile | RawEnumFile | RawEventFile | RawHookFile | RawLibraryFile;
+    let rawData:
+      | RawClassFile
+      | RawEnumFile
+      | RawEventFile
+      | RawHookFile
+      | RawLibraryFile;
     switch (yamlData.type) {
       case "class":
         rawData = yamlData as RawClassFile;
@@ -162,10 +180,13 @@ async function buildTypes(docsDir: string, outputDir?: string, generateTemplate?
 
   // declarations generation step
   // If generating template and outputDir is specified, put typings in typings subfolder
+  // If generating template without outputDir, use templateTypingsDir (template's typings folder)
   // Otherwise, put them directly in outputDir (or default typings folder)
   let typingsBaseDir: string;
   if (generateTemplate && outputDir) {
     typingsBaseDir = join(resolve(outputDir), "typings");
+  } else if (generateTemplate && templateTypingsDir) {
+    typingsBaseDir = templateTypingsDir;
   } else if (outputDir) {
     typingsBaseDir = resolve(outputDir);
   } else {
@@ -200,11 +221,14 @@ async function buildTypes(docsDir: string, outputDir?: string, generateTemplate?
     }
 
     const fullPath = resolve(typingsBaseDir, `${ctx}.d.ts`);
-    
+
     // Include patch content for shared.d.ts
     let finalCode = allCode.join("\n");
     if (ctx === "shared") {
-      const patchPath = resolve(import.meta.dir || __dirname, "./patches/shared.d.ts");
+      const patchPath = resolve(
+        import.meta.dir || __dirname,
+        "./patches/shared.d.ts"
+      );
       const patchContent = await Bun.file(patchPath).text();
       finalCode = patchContent + "\n\n" + finalCode;
     }
@@ -228,35 +252,55 @@ async function buildTypes(docsDir: string, outputDir?: string, generateTemplate?
 }
 
 export async function main(options: MainOptions = {}) {
-  const { outputDir, generateTemplate = false, modName, rm = false, refresh = false } = options;
+  const {
+    outputDir,
+    generateTemplate = false,
+    modName,
+    rm = false,
+    refresh = false,
+  } = options;
 
   // Handle refresh mode - expect output directories to exist
   if (refresh) {
     const typingsBaseDir = outputDir
       ? resolve(outputDir)
       : resolve(import.meta.dir || __dirname, "../typings");
-    
+
     if (!existsSync(typingsBaseDir)) {
-      console.error(`\n❌ Error: Output directory does not exist: ${typingsBaseDir}`);
-      console.error(`   --refresh requires the output directory to already exist.`);
+      console.error(
+        `\n❌ Error: Output directory does not exist: ${typingsBaseDir}`
+      );
+      console.error(
+        `   --refresh requires the output directory to already exist.`
+      );
       process.exit(1);
     }
 
     if (generateTemplate) {
       const templateFolderPath = getTemplateFolderPath(modName, outputDir);
       if (!existsSync(templateFolderPath)) {
-        console.error(`\n❌ Error: Template folder does not exist: ${templateFolderPath}`);
-        console.error(`   --refresh requires the template folder to already exist.`);
+        console.error(
+          `\n❌ Error: Template folder does not exist: ${templateFolderPath}`
+        );
+        console.error(
+          `   --refresh requires the template folder to already exist.`
+        );
         process.exit(1);
       }
-      console.log(`🔄 Refresh mode: Will overwrite files while preserving __init__.ts files`);
+      console.log(
+        `🔄 Refresh mode: Will overwrite files while preserving __init__.ts files`
+      );
     } else {
       console.log(`🔄 Refresh mode: Will overwrite type definition files`);
     }
   }
 
   // Check if template folder exists BEFORE doing any work (unless in refresh mode)
-  if (generateTemplate && checkTemplateFolderExists(modName, outputDir) && !refresh) {
+  if (
+    generateTemplate &&
+    checkTemplateFolderExists(modName, outputDir) &&
+    !refresh
+  ) {
     const templateFolderPath = getTemplateFolderPath(modName, outputDir);
     if (rm) {
       // Delete the existing folder
@@ -264,8 +308,12 @@ export async function main(options: MainOptions = {}) {
       rmSync(templateFolderPath, { recursive: true, force: true });
       console.log(`   ✓ Removed existing folder`);
     } else {
-      console.error(`\n❌ Error: Folder "${templateFolderPath}" already exists!`);
-      console.error(`   Please choose a different name, remove the existing folder, use --rm flag, or use --refresh to update.`);
+      console.error(
+        `\n❌ Error: Folder "${templateFolderPath}" already exists!`
+      );
+      console.error(
+        `   Please choose a different name, remove the existing folder, use --rm flag, or use --refresh to update.`
+      );
       process.exit(1);
     }
   }
@@ -285,9 +333,24 @@ export async function main(options: MainOptions = {}) {
   console.log("📦 Repository sync:");
   await downloadRepo(VU_DOCS_REPO_URL, REPO_ZIP_DL_DIR, commitHash);
   await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR, commitHash);
-  
+
+  // If generating template without outputDir, calculate template typings directory
+  // so types are generated in the template's typings folder
+  let templateTypingsDir: string | undefined;
+  if (generateTemplate && !outputDir) {
+    const templateFolderPath = getTemplateFolderPath(modName, outputDir);
+    templateTypingsDir = join(templateFolderPath, "typings");
+    // Note: Don't create the directory here - let buildTypes() create it
+    // This avoids creating the parent template folder prematurely
+  }
+
   console.log("\n🔨 Generating type definitions...");
-  await buildTypes(REPO_ZIP_EXTRACT_DIR, outputDir, generateTemplate);
+  await buildTypes(
+    REPO_ZIP_EXTRACT_DIR,
+    outputDir,
+    generateTemplate,
+    templateTypingsDir
+  );
 
   // If generateTemplate is true, also generate the ext project
   if (generateTemplate) {
