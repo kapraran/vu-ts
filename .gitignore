@@ -4,3 +4,6 @@ typings
 dist
 ext
 vu-ts-mod-template
+src/pipeline/utils/monitoring.ts
+.cursor/debug.log
+.vu-ts-flags.json

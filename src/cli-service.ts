@@ -3,9 +3,10 @@
  * This module separates CLI logic from the core type generation pipeline
  */
 
-import { main } from './index';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { main } from "./index";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+import { FeatureFlags } from "./pipeline/config/feature-flags";
 
 export interface InitCommandOptions {
   name?: string;
@@ -22,17 +23,21 @@ export interface TypesCommandOptions {
 /**
  * Execute the 'init' command - creates a new mod project with TypeScript types
  */
-export async function executeInitCommand(options: InitCommandOptions): Promise<void> {
+export async function executeInitCommand(
+  options: InitCommandOptions
+): Promise<void> {
   const { name, output, force, refresh } = options;
 
   if (!name) {
-    throw new Error('Project name is required. Usage: vu-ts init <name> [options]');
+    throw new Error(
+      "Project name is required. Usage: vu-ts init <name> [options]"
+    );
   }
 
   // Pre-flight checks - validate folder existence BEFORE doing any work
 
   if (refresh && force) {
-    throw new Error('--force and --refresh cannot be used together');
+    throw new Error("--force and --refresh cannot be used together");
   }
 
   console.log(`🚀 Creating new mod project "${name}"...`);
@@ -57,7 +62,19 @@ export async function executeInitCommand(options: InitCommandOptions): Promise<v
 /**
  * Execute the 'types' command - generates TypeScript declaration files only
  */
-export async function executeTypesCommand(options: TypesCommandOptions): Promise<void> {
+export async function executeTypesCommand(
+  options: TypesCommandOptions
+): Promise<void> {
+  const featureFlags = FeatureFlags.getInstance();
+  const flagValue = featureFlags.getFlag("useLegacyPipeline");
+  const useLegacyPipeline = flagValue === true; // For CLI logging only, undefined means new pipeline
+
+  if (useLegacyPipeline) {
+    console.log("🔄 Using legacy pipeline for types generation");
+  } else {
+    console.log("🚀 Using new pipeline for types generation");
+  }
+
   console.log(`🔨 Generating TypeScript declaration files...`);
 
   await main({
@@ -66,8 +83,10 @@ export async function executeTypesCommand(options: TypesCommandOptions): Promise
     refresh: options.refresh || false,
   });
 
-  const outputLocation = options.output || './typings';
-  console.log(`\n✅ TypeScript types generated successfully in "${outputLocation}"!`);
+  const outputLocation = options.output || "./typings";
+  console.log(
+    `\n✅ TypeScript types generated successfully in "${outputLocation}"!`
+  );
   console.log(`   Generated files:`);
   console.log(`   • client.d.ts - Client-side API types`);
   console.log(`   • server.d.ts - Server-side API types`);
@@ -79,11 +98,14 @@ export async function executeTypesCommand(options: TypesCommandOptions): Promise
  */
 export function showVersion(): void {
   try {
-    const packagePath = resolve(import.meta.dir || __dirname, '../package.json');
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
-    console.log(packageJson.version || 'unknown');
+    const packagePath = resolve(
+      import.meta.dir || __dirname,
+      "../package.json"
+    );
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf-8"));
+    console.log(packageJson.version || "unknown");
   } catch (error) {
-    console.error('Error reading version');
+    console.error("Error reading version");
     process.exit(1);
   }
 }

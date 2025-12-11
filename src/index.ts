@@ -29,6 +29,8 @@ import generateExtProject, {
   checkTemplateFolderExists,
   getTemplateFolderPath,
 } from "./generators/ext-project";
+import { FeatureFlags } from "./pipeline/config/feature-flags";
+import { PipelineFactory } from "./pipeline";
 
 type typeNamespace = "client" | "server" | "shared" | "fb";
 
@@ -66,7 +68,7 @@ export interface MainOptions {
   refresh?: boolean;
 }
 
-async function buildTypes(
+export async function buildTypes(
   docsDir: string,
   outputDir?: string,
   generateTemplate?: boolean,
@@ -265,10 +267,14 @@ export async function main(options: MainOptions = {}) {
 
   // Pre-flight check: if generating template, validate project folder doesn't exist
   if (generateTemplate && modName && !refresh && !rm) {
-    const { checkTemplateFolderExists } = await import('./generators/ext-project');
+    const { checkTemplateFolderExists } = await import(
+      "./generators/ext-project"
+    );
     if (checkTemplateFolderExists(modName, outputDir)) {
       const folderPath = outputDir ? `${outputDir}/${modName}` : modName;
-      throw new Error(`Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`);
+      throw new Error(
+        `Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`
+      );
     }
   }
 
@@ -335,22 +341,97 @@ export async function main(options: MainOptions = {}) {
   // Don't pre-cculate templateTypingsDir here to avoid creating the parent folder prematurely
   let templateTypingsDir: string | undefined;
 
-  console.log("\n🔨 Generating type definitions...");
-  await buildTypes(
-    REPO_ZIP_EXTRACT_DIR,
-    outputDir,
-    generateTemplate,
-    templateTypingsDir,
-    modName
-  );
+  // Check feature flags to determine which pipeline to use
+  const featureFlags = FeatureFlags.getInstance();
+  const flagValue = featureFlags.getFlag("useLegacyPipeline");
+  // Respect the feature flag - if explicitly set to false, use new pipeline even for template generation
+  // Only default to legacy if flag is not explicitly set (undefined) and generateTemplate is true
+  const useLegacyPipeline =
+    flagValue === true ||
+    (flagValue === undefined && generateTemplate === true);
 
-  // If generateTemplate is true, also generate the ext project
-  if (generateTemplate) {
-    console.log("\n📁 Generating mod template...");
-    await generateExtProject(modName, refresh, outputDir);
+  if (useLegacyPipeline) {
+    console.log("🔄 Using legacy pipeline (feature flag enabled)");
+    await runLegacyPipeline(options);
+  } else {
+    console.log("🚀 Using new optimized pipeline");
+    await runNewPipeline(options);
   }
 
   console.log("\n✅ Done!");
+}
+
+// New pipeline implementation
+async function runNewPipeline(options: MainOptions) {
+  const { PipelineFactory } = await import("./pipeline");
+
+  const config = {
+    outputDir:
+      options.outputDir || resolve(import.meta.dir || __dirname, "../typings"),
+    parallel: true,
+    batchSize: 50,
+    cacheEnabled: true,
+    namespaces: ["client", "server", "shared"],
+    incremental: true,
+    featureFlags: {
+      useLegacyPipeline: false,
+      enableParallel: true,
+      enableCaching: true,
+    },
+  };
+
+  const pipeline = PipelineFactory.createPipeline(config);
+
+  // Set metadata for generation stage
+  const context = pipeline.getContext();
+  context.metadata.set("generateTemplate", options.generateTemplate || false);
+  context.metadata.set("modName", options.modName);
+  context.metadata.set("outputDir", options.outputDir);
+
+  const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
+
+  // File discovery
+  const globPaths = ["**/*.yaml"];
+  const filePaths = globPaths.flatMap((globPath) => {
+    const glob = new Glob(globPath);
+    return Array.from(glob.scanSync({ cwd: pathPrefix })).map((file) =>
+      join(pathPrefix, file)
+    );
+  });
+
+  console.log(`   Parsing ${filePaths.length} YAML files...`);
+
+  await pipeline.run(filePaths);
+
+  // If generateTemplate is true, also generate the ext project
+  if (options.generateTemplate && options.modName) {
+    console.log("\n📁 Generating mod template...");
+    await generateExtProject(
+      options.modName,
+      options.refresh || false,
+      options.outputDir
+    );
+  }
+}
+
+// Legacy pipeline wrapper
+async function runLegacyPipeline(options: MainOptions) {
+  // Existing buildTypes implementation
+  await buildTypes(
+    REPO_ZIP_EXTRACT_DIR,
+    options.outputDir,
+    options.generateTemplate,
+    undefined,
+    options.modName
+  );
+
+  if (options.generateTemplate && options.modName) {
+    await generateExtProject(
+      options.modName,
+      options.refresh || false,
+      options.outputDir
+    );
+  }
 }
 function resolveNamespace(filePath: string): typeNamespace {
   if (filePath.match(/VU-Docs-master\\types\\client/i)) return "client";
