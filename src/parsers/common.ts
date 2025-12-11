@@ -82,4 +82,5 @@ export interface CleanClassFile extends CleanCommonFile {
   properties: PropType[];
   operators: OperatorType[];
   methods: MethodType[];
+  generics?: Record<string, string>;
 }

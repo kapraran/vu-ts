@@ -157,12 +157,10 @@ async function buildTypes(
     };
   }, {});
 
-  // console.log(symbolMaps);
-
-  // transforming step
+  // transforming step - apply to symbol maps so changes are visible to generators
   Object.entries(declarations).forEach(([ctx, ns]) => {
-    for (const filePath of filePaths) {
-      const parseResult = parseResults.get(resolveRelPath(filePath))!;
+    const symbolMap = symbolMaps[ctx];
+    for (const [key, parseResult] of symbolMap.entries()) {
       if (!ns.includes(parseResult.namespace)) continue;
 
       const pipeline = pipelineMap[parseResult.type];
@@ -172,6 +170,8 @@ async function buildTypes(
       transformer(parseResult, ctx, symbolMaps);
     }
   });
+
+  // console.log(symbolMaps);
 
   // console.log(
   //   symbolMaps.client.get("shared\\library\\Events.yaml")!.result.methods[10]

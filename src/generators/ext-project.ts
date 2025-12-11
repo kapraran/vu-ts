@@ -1,5 +1,5 @@
 import { resolve, join } from "path";
-import { existsSync, mkdirSync, readdirSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 
 export function checkTemplateFolderExists(modName?: string, outputDir?: string): boolean {
   // If outputDir is specified, use it directly as the template folder
@@ -34,17 +34,10 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
 
   // Check if folder already exists (safety check - should have been checked earlier)
   // Skip this check in refresh mode
-  // Also allow if folder only contains 'typings' (created during type generation)
   if (existsSync(TEMPLATE_PROJECT_DIR) && !refresh) {
-    const contents = readdirSync(TEMPLATE_PROJECT_DIR);
-    const hasOnlyTypings = contents.length === 1 && contents[0] === "typings";
-    
-    if (!hasOnlyTypings) {
-      console.error(`\n❌ Error: Folder "${TEMPLATE_PROJECT_DIR}" already exists!`);
-      console.error(`   Please choose a different name or remove the existing folder.`);
-      process.exit(1);
-    }
-    // If it only has typings, that's fine - we created it during type generation
+    console.error(`\n❌ Error: Folder "${TEMPLATE_PROJECT_DIR}" already exists!`);
+    console.error(`   Please choose a different name or remove the existing folder.`);
+    process.exit(1);
   }
 
   // In refresh mode, preserve __init__.ts files

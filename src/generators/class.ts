@@ -128,9 +128,20 @@ export default function (data: CleanClassFile) {
     ? `/** @customConstructor ${data.name} */\n  `
     : "";
 
+  // Generate generic parameters if present
+  const genericParams = data.generics
+    ? `<${Object.entries(data.generics).map(([name, defaultType]) => {
+        // Special handling for HookContext TPassArgs - it must extend array type
+        if (data.name === "HookContext" && name === "TPassArgs") {
+          return defaultType ? `${name} extends any[] = ${defaultType}` : `${name} extends any[]`;
+        }
+        return defaultType ? `${name} = ${defaultType}` : name;
+      }).join(", ")}>`
+    : "";
+
   return `
 
-  ${customConstructorAnnotation}declare ${data.declareAs} ${data.name} ${
+  ${customConstructorAnnotation}declare ${data.declareAs} ${data.name}${genericParams} ${
     data.inherits ? `extends ${data.inherits}` : ""
   } {
 
@@ -146,6 +157,6 @@ export default function (data: CleanClassFile) {
       .filter((code) => code.length > 0)
       .join(";\n")}
   }
-  
+
   `;
 }

@@ -37,13 +37,29 @@ export default function (
     return `${fixParamName(param.name)}: ${finalType}${nullable}`;
   }).join(", ");
 
+  // Generate HookContext type parameters
+  // TCallReturn is the return type of the hook (or void if no return)
+  const callReturnType = hookFile.returns
+    ? (() => {
+        const type = fixTypeName(hookFile.returns.type);
+        const nullable = hookFile.returns.nullable ? "| null" : "";
+        const finalType = hookFile.returns.table ? `LuaTable<string, ${type}>` : type;
+        return `${finalType}${nullable}`;
+      })()
+    : "void";
+
+  // TPassArgs is a tuple of the hook parameter types for the Pass method
+  const passArgsType = hookFile.params.length > 0
+    ? `[${hookParams.replace(/\w+:\s*/g, "")}]`
+    : "[]";
+
   // Build callback type with hookCtx as first parameter after 'this: void'
-  // Callbacks always return void
+  // Use typed HookContext with TCallReturn and TPassArgs
   let callbackType: string;
   if (hookFile.params.length > 0) {
-    callbackType = `(this: void, hookCtx: HookContext, ${hookParams}) => void`;
+    callbackType = `(this: void, hookCtx: HookContext<${callReturnType}, ${passArgsType}>, ${hookParams}) => void`;
   } else {
-    callbackType = `(this: void, hookCtx: HookContext) => void`;
+    callbackType = `(this: void, hookCtx: HookContext<${callReturnType}, []>) => void`;
   }
 
   const params = [
