@@ -6,7 +6,6 @@
 import { main } from './index';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { checkTemplateFolderExists } from './generators/ext-project';
 
 export interface InitCommandOptions {
   name?: string;
@@ -34,11 +33,6 @@ export async function executeInitCommand(options: InitCommandOptions): Promise<v
 
   if (refresh && force) {
     throw new Error('--force and --refresh cannot be used together');
-  }
-
-  if (checkTemplateFolderExists(name, output) && !refresh && !force) {
-    const folderPath = output ? `${output}/${name}` : name;
-    throw new Error(`Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`);
   }
 
   console.log(`🚀 Creating new mod project "${name}"...`);

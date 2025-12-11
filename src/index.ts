@@ -1,6 +1,7 @@
 import { Glob } from "bun";
 import { resolve, join } from "path";
 import { mkdirSync, existsSync, rmSync } from "fs";
+import { cwd } from "process";
 import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
@@ -69,7 +70,8 @@ async function buildTypes(
   docsDir: string,
   outputDir?: string,
   generateTemplate?: boolean,
-  templateTypingsDir?: string
+  templateTypingsDir?: string,
+  modName?: string
 ) {
   const parseResults = new Map<string, ParseResult<any>>();
 
@@ -179,10 +181,16 @@ async function buildTypes(
   // );
 
   // declarations generation step
-  // For template generation, we always generate types to the default or specified outputDir
-  // The project generation will handle copying types to the right location
+  // When generating a template, types go directly to the project's typings folder
+  // Otherwise, types go to the specified outputDir or default location
   let typingsBaseDir: string;
-  if (outputDir) {
+  if (generateTemplate && modName) {
+    // For template generation, put types directly in the project's typings folder
+    const projectFolder = outputDir
+      ? join(resolve(outputDir), modName)
+      : join(cwd(), modName);
+    typingsBaseDir = join(projectFolder, "typings");
+  } else if (outputDir) {
     typingsBaseDir = resolve(outputDir);
   } else {
     typingsBaseDir = resolve(import.meta.dir || __dirname, "../typings");
@@ -255,6 +263,15 @@ export async function main(options: MainOptions = {}) {
     refresh = false,
   } = options;
 
+  // Pre-flight check: if generating template, validate project folder doesn't exist
+  if (generateTemplate && modName && !refresh && !rm) {
+    const { checkTemplateFolderExists } = await import('./generators/ext-project');
+    if (checkTemplateFolderExists(modName, outputDir)) {
+      const folderPath = outputDir ? `${outputDir}/${modName}` : modName;
+      throw new Error(`Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`);
+    }
+  }
+
   // Handle refresh mode - expect output directories to exist
   if (refresh) {
     const typingsBaseDir = outputDir
@@ -323,7 +340,8 @@ export async function main(options: MainOptions = {}) {
     REPO_ZIP_EXTRACT_DIR,
     outputDir,
     generateTemplate,
-    templateTypingsDir
+    templateTypingsDir,
+    modName
   );
 
   // If generateTemplate is true, also generate the ext project

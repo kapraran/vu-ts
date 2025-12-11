@@ -1,5 +1,5 @@
 import { resolve, join } from "path";
-import { existsSync, mkdirSync, copyFileSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { cwd } from "process";
 
 export function checkTemplateFolderExists(modName?: string, outputDir?: string): boolean {
@@ -10,8 +10,8 @@ export function checkTemplateFolderExists(modName?: string, outputDir?: string):
     const TEMPLATE_PROJECT_DIR = join(resolve(outputDir), folderName);
     return existsSync(TEMPLATE_PROJECT_DIR);
   }
-  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
+  // Use cwd() to match the path resolution in buildTypes
+  const TEMPLATE_PROJECT_DIR = join(cwd(), folderName);
   return existsSync(TEMPLATE_PROJECT_DIR);
 }
 
@@ -22,9 +22,8 @@ export function getTemplateFolderPath(modName?: string, outputDir?: string): str
   if (outputDir) {
     return join(resolve(outputDir), folderName);
   }
-  const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
-  return TEMPLATE_PROJECT_DIR;
+  // Use cwd() to match the path resolution in buildTypes
+  return join(cwd(), folderName);
 }
 
 async function generateExtProject(modName?: string, refresh: boolean = false, outputDir?: string) {
@@ -33,7 +32,7 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
   const folderName = modName || "vu-ts-mod-template";
   const TEMPLATE_PROJECT_DIR = outputDir
     ? join(resolve(outputDir), folderName)
-    : join(resolve(import.meta.dir || __dirname, "../.."), folderName);
+    : join(cwd(), folderName);
   const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
 
   // Check if folder already exists (safety check - should have been checked earlier)
@@ -77,32 +76,21 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
     console.log(`   ✓ Created ${createdDirs} directories`);
   }
 
-  // Copy type definition files from the default typings location to the project
+  // Types are already generated in the project's typings folder by the type generation step
+  // Just verify they exist
   const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, "typings");
-  // Use cwd() to get the current working directory since we're running from the project root
-  const defaultTypingsDir = join(cwd(), "typings");
   const typingFiles = ["client.d.ts", "server.d.ts", "shared.d.ts"];
-
-  // Ensure the typings directory exists
-  if (!existsSync(templateTypingsDir)) {
-    mkdirSync(templateTypingsDir, { recursive: true });
-  }
-
-  let copiedFiles = 0;
+  let foundFiles = 0;
   for (const file of typingFiles) {
-    const srcPath = join(defaultTypingsDir, file);
     const destPath = join(templateTypingsDir, file);
-
-    if (existsSync(srcPath)) {
-      copyFileSync(srcPath, destPath);
-      copiedFiles++;
+    if (existsSync(destPath)) {
+      foundFiles++;
     } else {
-      console.warn(`   ⚠ Warning: ${file} not found in source typings directory`);
+      console.warn(`   ⚠ Warning: ${file} not found in typings directory`);
     }
   }
-
-  if (copiedFiles > 0) {
-    console.log(`   ✓ Copied ${copiedFiles} TypeScript definition files`);
+  if (foundFiles > 0) {
+    console.log(`   ✓ TypeScript definition files ready (${foundFiles} files)`);
   }
 
   // Generate tsconfig.base.json
