@@ -5,9 +5,8 @@
     "vu-ts": "./src/cli.ts"
   },
   "scripts": {
-    "start": "bun src/index.ts",
-    "generate": "bun src/index.ts generate",
-    "dev": "bun --watch src/index.ts",
+    "start": "bun src/cli.ts",
+    "dev": "bun --watch src/cli.ts",
     "validate": "bun validate.js",
     "infer-schema": "bun scripts/infer-schema.ts",
     "yaml-to-ts": "bun scripts/yaml-to-ts-models.ts"
@@ -19,9 +18,11 @@
     "prettier": "^2.6.1",
     "typescript": "^4.6.3",
     "typescript-json-schema": "^0.55.0",
-    "yaml": "^2.2.1"
+    "yaml": "^2.2.1",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@types/yargs": "^17.0.35",
     "@typescript-to-lua/language-extensions": "^1.19.0"
   }
 }

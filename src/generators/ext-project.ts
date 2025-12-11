@@ -1,35 +1,39 @@
 import { resolve, join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, copyFileSync } from "fs";
+import { cwd } from "process";
 
 export function checkTemplateFolderExists(modName?: string, outputDir?: string): boolean {
-  // If outputDir is specified, use it directly as the template folder
+  // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
+  const folderName = modName || "vu-ts-mod-template";
   if (outputDir) {
-    return existsSync(resolve(outputDir));
+    const TEMPLATE_PROJECT_DIR = join(resolve(outputDir), folderName);
+    return existsSync(TEMPLATE_PROJECT_DIR);
   }
   const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-  const folderName = modName || "vu-ts-mod-template";
   const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
   return existsSync(TEMPLATE_PROJECT_DIR);
 }
 
 export function getTemplateFolderPath(modName?: string, outputDir?: string): string {
-  // If outputDir is specified, use it directly as the template folder
+  // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
+  const folderName = modName || "vu-ts-mod-template";
   if (outputDir) {
-    return resolve(outputDir);
+    return join(resolve(outputDir), folderName);
   }
   const PROJECT_ROOT = resolve(import.meta.dir || __dirname, "../..");
-  const folderName = modName || "vu-ts-mod-template";
-  return join(PROJECT_ROOT, folderName);
+  const TEMPLATE_PROJECT_DIR = join(PROJECT_ROOT, folderName);
+  return TEMPLATE_PROJECT_DIR;
 }
 
 async function generateExtProject(modName?: string, refresh: boolean = false, outputDir?: string) {
-  // If outputDir is specified, use it directly as the template folder
+  // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
-  const TEMPLATE_PROJECT_DIR = outputDir 
-    ? resolve(outputDir) 
-    : join(resolve(import.meta.dir || __dirname, "../.."), modName || "vu-ts-mod-template");
+  const folderName = modName || "vu-ts-mod-template";
+  const TEMPLATE_PROJECT_DIR = outputDir
+    ? join(resolve(outputDir), folderName)
+    : join(resolve(import.meta.dir || __dirname, "../.."), folderName);
   const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
 
   // Check if folder already exists (safety check - should have been checked earlier)
@@ -73,21 +77,32 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
     console.log(`   ✓ Created ${createdDirs} directories`);
   }
 
-  // Typings are already generated in the template's typings folder when generateTemplate is true
-  // So we don't need to copy them. Just verify they exist.
+  // Copy type definition files from the default typings location to the project
   const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, "typings");
+  // Use cwd() to get the current working directory since we're running from the project root
+  const defaultTypingsDir = join(cwd(), "typings");
   const typingFiles = ["client.d.ts", "server.d.ts", "shared.d.ts"];
-  let foundFiles = 0;
+
+  // Ensure the typings directory exists
+  if (!existsSync(templateTypingsDir)) {
+    mkdirSync(templateTypingsDir, { recursive: true });
+  }
+
+  let copiedFiles = 0;
   for (const file of typingFiles) {
+    const srcPath = join(defaultTypingsDir, file);
     const destPath = join(templateTypingsDir, file);
-    if (existsSync(destPath)) {
-      foundFiles++;
+
+    if (existsSync(srcPath)) {
+      copyFileSync(srcPath, destPath);
+      copiedFiles++;
     } else {
-      console.warn(`   ⚠ Warning: ${file} not found in typings directory`);
+      console.warn(`   ⚠ Warning: ${file} not found in source typings directory`);
     }
   }
-  if (foundFiles > 0) {
-    console.log(`   ✓ Typings already in place (${foundFiles} files)`);
+
+  if (copiedFiles > 0) {
+    console.log(`   ✓ Copied ${copiedFiles} TypeScript definition files`);
   }
 
   // Generate tsconfig.base.json
