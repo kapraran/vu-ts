@@ -4,11 +4,10 @@
  */
 
 import { join, resolve } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync } from "fs";
 import { detectModRoot, validateModRoot } from "./utils/mod-detection";
 import { generateCustomEventsDeclarations } from "./generators/custom-events";
 import type { CustomEvent, CustomEventsConfig, CustomEventParam } from "./types/CustomEvent";
-import { saveDeclarationFile } from "./utils";
 
 export type EventContext = "client" | "server" | "shared";
 
@@ -31,7 +30,10 @@ export interface EventListCommandOptions {
 }
 
 const CUSTOM_EVENTS_JSON = "custom-events.json";
-const CUSTOM_EVENTS_D_TS = "custom-events.d.ts";
+
+const TYPES_D_TS = "types.d.ts";
+const GENERATED_BLOCK_BEGIN = "// BEGIN VU-TS CUSTOM EVENTS (generated)";
+const GENERATED_BLOCK_END = "// END VU-TS CUSTOM EVENTS (generated)";
 
 /**
  * Parse parameter string in format "name:type" or "name:type|nullable"
@@ -87,38 +89,43 @@ async function saveCustomEventsConfig(
 }
 
 /**
- * Generate custom-events.d.ts file for a specific context
+ * Update ext-ts/{context}/types.d.ts in-place by inserting a generated block.
  */
-async function generateCustomEventsFile(
+async function upsertCustomEventsIntoTypesDts(
   modRoot: string,
   context: EventContext,
   events: CustomEvent[]
 ): Promise<void> {
-  const outputPath = join(modRoot, "ext-ts", context, CUSTOM_EVENTS_D_TS);
-  const declarations = generateCustomEventsDeclarations(events);
-  await saveDeclarationFile(outputPath, declarations);
-}
+  const typesDPath = join(modRoot, "ext-ts", context, TYPES_D_TS);
 
-/**
- * Ensure types.d.ts includes reference to custom-events.d.ts
- */
-async function ensureCustomEventsReference(modRoot: string, context: EventContext): Promise<void> {
-  const typesDPath = join(modRoot, "ext-ts", context, "types.d.ts");
-  
   if (!existsSync(typesDPath)) {
-    throw new Error(`types.d.ts not found at ${typesDPath}. Make sure you're in a valid mod directory.`);
+    throw new Error(
+      `types.d.ts not found at ${typesDPath}. Make sure you're pointing at a generated mod template.`
+    );
   }
 
   const content = await Bun.file(typesDPath).text();
-  const reference = `/// <reference path="./custom-events.d.ts" />`;
-  
-  // Check if reference already exists
-  if (content.includes(`custom-events.d.ts`)) {
-    return;
+
+  const generatedBody = generateCustomEventsDeclarations(events).trimEnd();
+  const generatedBlock =
+    `${GENERATED_BLOCK_BEGIN}\n` +
+    `// Typed custom events for this folder (Subscribe / Dispatch / DispatchLocal)\n` +
+    `${generatedBody}\n` +
+    `${GENERATED_BLOCK_END}\n`;
+
+  const blockRegex = new RegExp(
+    `${GENERATED_BLOCK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${GENERATED_BLOCK_END.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n?`,
+    "g"
+  );
+
+  let newContent: string;
+  if (blockRegex.test(content)) {
+    newContent = content.replace(blockRegex, generatedBlock);
+  } else {
+    // Append block at end, preserving existing references
+    newContent = content.trimEnd() + "\n\n" + generatedBlock;
   }
 
-  // Add reference at the end of the file
-  const newContent = content.trimEnd() + "\n" + reference + "\n";
   await Bun.write(typesDPath, newContent);
 }
 
@@ -200,11 +207,8 @@ export async function executeEventAddCommand(options: EventAddCommandOptions): P
   // Save config
   await saveCustomEventsConfig(modRoot, config);
 
-  // Generate .d.ts file
-  await generateCustomEventsFile(modRoot, context, config[context]);
-
-  // Ensure types.d.ts references custom-events.d.ts
-  await ensureCustomEventsReference(modRoot, context);
+  // Update ext-ts/{context}/types.d.ts in-place
+  await upsertCustomEventsIntoTypesDts(modRoot, context, config[context]);
 
   console.log(`✓ Added event "${name}" to ${context} context`);
   if (parsedParams.length > 0) {
@@ -256,8 +260,8 @@ export async function executeEventRemoveCommand(options: EventRemoveCommandOptio
   // Save config
   await saveCustomEventsConfig(modRoot, config);
 
-  // Regenerate .d.ts file (may be empty now)
-  await generateCustomEventsFile(modRoot, context, config[context]);
+  // Update ext-ts/{context}/types.d.ts in-place (may become empty block)
+  await upsertCustomEventsIntoTypesDts(modRoot, context, config[context]);
 
   console.log(`✓ Removed event "${name}" from ${context} context`);
 }

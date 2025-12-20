@@ -1,5 +1,5 @@
 import { fixTypeName, fixParamName } from "./common";
-import type { CustomEvent, CustomEventParam } from "../types/CustomEvent";
+import type { CustomEvent } from "../types/CustomEvent";
 
 /**
  * Generate TypeScript declaration code for custom events that extend the Events namespace
@@ -8,8 +8,7 @@ import type { CustomEvent, CustomEventParam } from "../types/CustomEvent";
  */
 export function generateCustomEventsDeclarations(events: CustomEvent[]): string {
   if (events.length === 0) {
-    return `// Custom Events - Extend Events namespace with your mod's events
-declare namespace Events {
+    return `declare namespace Events {
 }
 `;
   }
@@ -47,14 +46,20 @@ declare namespace Events {
     eventName: "${event.name}"
   ): void;`;
 
-    return `${subscribeOverload}
+    // Generate DispatchLocal overload (local custom event)
+    const dispatchLocalOverload = dispatchParams
+      ? `  function DispatchLocal(
+    eventName: "${event.name}",
+    ${dispatchParams}
+  ): void;`
+      : `  function DispatchLocal(
+    eventName: "${event.name}"
+  ): void;`;
 
-${dispatchOverload}`;
+    return `${subscribeOverload}\n\n${dispatchOverload}\n\n${dispatchLocalOverload}`;
   }).join("\n\n");
 
-  return `// Custom Events - Extend Events namespace with your mod's events
-// This file uses TypeScript declaration merging to add custom events to the Events namespace
-declare namespace Events {
+  return `declare namespace Events {
 ${declarations}
 }
 `;
