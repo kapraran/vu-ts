@@ -3,9 +3,8 @@
  * Handles adding, removing, and listing custom netevents for mods
  */
 
-import { join, resolve } from "path";
 import { existsSync } from "fs";
-import { detectModRoot, validateModRoot } from "./utils/mod-detection";
+import { join, resolve } from "path";
 import {
   generateCustomNetEventsDeclarations,
   type NetEventContext,
@@ -14,6 +13,7 @@ import type {
   CustomNetEvent,
   CustomNetEventParam,
 } from "./types/CustomNetEvent";
+import { detectModRoot, validateModRoot } from "./utils/mod-detection";
 
 export interface NetEventAddCommandOptions {
   context: NetEventContext;
@@ -46,7 +46,8 @@ function validateContext(context: string): context is NetEventContext {
 }
 
 function validateNetEventName(name: string): void {
-  if (!name || name.trim().length === 0) throw new Error("NetEvent name cannot be empty");
+  if (!name || name.trim().length === 0)
+    throw new Error("NetEvent name cannot be empty");
   if (name.includes("\n") || name.includes("\r")) {
     throw new Error("NetEvent name cannot contain newlines");
   }
@@ -65,8 +66,11 @@ function parseParam(paramStr: string): CustomNetEventParam {
   }
 
   const trimmedType = typeStr.trim();
-  const nullable = trimmedType.endsWith("| null") || trimmedType.endsWith("|null");
-  const baseType = nullable ? trimmedType.replace(/\|\s*null$/, "").trim() : trimmedType;
+  const nullable =
+    trimmedType.endsWith("| null") || trimmedType.endsWith("|null");
+  const baseType = nullable
+    ? trimmedType.replace(/\|\s*null$/, "").trim()
+    : trimmedType;
 
   return {
     name: name.trim(),
@@ -100,13 +104,21 @@ async function loadConfig(modRoot: string): Promise<CustomConfigAny> {
   return parsed;
 }
 
-async function saveConfig(modRoot: string, config: CustomConfigAny): Promise<void> {
+async function saveConfig(
+  modRoot: string,
+  config: CustomConfigAny
+): Promise<void> {
   const configPath = join(modRoot, CUSTOM_EVENTS_JSON);
   await Bun.write(configPath, JSON.stringify(config, null, 2) + "\n");
 }
 
-function getNetEventsArray(config: CustomConfigAny, ctx: NetEventContext): CustomNetEvent[] {
-  return (ctx === "client" ? config.neteventsClient : config.neteventsServer) as CustomNetEvent[];
+function getNetEventsArray(
+  config: CustomConfigAny,
+  ctx: NetEventContext
+): CustomNetEvent[] {
+  return (
+    ctx === "client" ? config.neteventsClient : config.neteventsServer
+  ) as CustomNetEvent[];
 }
 
 function setNetEventsArray(
@@ -131,7 +143,10 @@ async function upsertCustomNetEventsIntoTypesDts(
   }
 
   const content = await Bun.file(typesDPath).text();
-  const generatedBody = generateCustomNetEventsDeclarations(ctx, netevents).trimEnd();
+  const generatedBody = generateCustomNetEventsDeclarations(
+    ctx,
+    netevents
+  ).trimEnd();
   const generatedBlock =
     `${GENERATED_BLOCK_BEGIN}\n` +
     `// Typed custom NetEvents for this folder\n` +
@@ -139,7 +154,10 @@ async function upsertCustomNetEventsIntoTypesDts(
     `${GENERATED_BLOCK_END}\n`;
 
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const blockRegex = new RegExp(`${esc(GENERATED_BLOCK_BEGIN)}[\\s\\S]*?${esc(GENERATED_BLOCK_END)}\\n?`, "g");
+  const blockRegex = new RegExp(
+    `${esc(GENERATED_BLOCK_BEGIN)}[\\s\\S]*?${esc(GENERATED_BLOCK_END)}\\n?`,
+    "g"
+  );
 
   const newContent = blockRegex.test(content)
     ? content.replace(blockRegex, generatedBlock)
@@ -176,7 +194,9 @@ export async function executeNetEventAddCommand(
   const { context, name, params = [], modRoot: providedModRoot } = options;
 
   if (!validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server`
+    );
   }
   validateNetEventName(name);
 
@@ -209,7 +229,9 @@ export async function executeNetEventRemoveCommand(
   const { context, name, modRoot: providedModRoot } = options;
 
   if (!validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server`
+    );
   }
   validateNetEventName(name);
 
@@ -236,13 +258,17 @@ export async function executeNetEventListCommand(
   const { context, modRoot: providedModRoot } = options;
 
   if (context && !validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server`
+    );
   }
 
   const modRoot = resolveModRootOrThrow(providedModRoot);
   const config = await loadConfig(modRoot);
 
-  const contextsToShow: NetEventContext[] = context ? [context] : ["client", "server"];
+  const contextsToShow: NetEventContext[] = context
+    ? [context]
+    : ["client", "server"];
   let hasAny = false;
 
   for (const ctx of contextsToShow) {
@@ -251,7 +277,11 @@ export async function executeNetEventListCommand(
     await upsertCustomNetEventsIntoTypesDts(modRoot, ctx, arr);
     if (arr.length === 0) continue;
     hasAny = true;
-    console.log(`\n${ctx.toUpperCase()} (${arr.length} netevent${arr.length !== 1 ? "s" : ""}):`);
+    console.log(
+      `\n${ctx.toUpperCase()} (${arr.length} netevent${
+        arr.length !== 1 ? "s" : ""
+      }):`
+    );
     for (const evt of arr) {
       console.log(`  • ${evt.name}`);
       if (evt.params?.length) {
@@ -264,8 +294,10 @@ export async function executeNetEventListCommand(
   }
 
   if (!hasAny) {
-    console.log(context ? `No custom netevents found in ${context} context.` : "No custom netevents found.");
+    console.log(
+      context
+        ? `No custom netevents found in ${context} context.`
+        : "No custom netevents found."
+    );
   }
 }
-
-

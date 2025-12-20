@@ -22,7 +22,10 @@ async function readCacheMetadata(): Promise<CacheMetadata> {
 
 async function writeCacheMetadata(metadata: CacheMetadata): Promise<void> {
   try {
-    await Bun.write(CACHE_METADATA_PATH, JSON.stringify(metadata, null, 2) + "\n");
+    await Bun.write(
+      CACHE_METADATA_PATH,
+      JSON.stringify(metadata, null, 2) + "\n"
+    );
   } catch (error) {
     // Silently fail - cache write errors shouldn't block the script
     console.warn(`Warning: Failed to write cache metadata: ${error}`);
@@ -35,7 +38,9 @@ export async function getLatestCommitHash(): Promise<string | null> {
       "https://api.github.com/repos/EmulatorNexus/VU-Docs/commits/master"
     );
     if (!response.ok) {
-      console.warn(`Warning: Failed to fetch commit hash: ${response.statusText}`);
+      console.warn(
+        `Warning: Failed to fetch commit hash: ${response.statusText}`
+      );
       return null;
     }
     const data = await response.json();
@@ -55,13 +60,17 @@ export async function downloadRepo(
   if (commitHash) {
     const cache = await readCacheMetadata();
     const fileExists = await Bun.file(outPath).exists();
-    
+
     if (fileExists && cache.downloadCommit === commitHash) {
-      console.log(`   ✓ Download cached (commit ${commitHash.substring(0, 7)})`);
+      console.log(
+        `   ✓ Download cached (commit ${commitHash.substring(0, 7)})`
+      );
       return;
     }
     if (fileExists && cache.downloadCommit) {
-      console.log(`   ⬇  Downloading (new commit: ${commitHash.substring(0, 7)})...`);
+      console.log(
+        `   ⬇  Downloading (new commit: ${commitHash.substring(0, 7)})...`
+      );
     } else {
       console.log(`   ⬇  Downloading repository...`);
     }
@@ -100,9 +109,11 @@ export async function extractRepo(
   if (commitHash) {
     const cache = await readCacheMetadata();
     const dirExists = existsSync(outPath);
-    
+
     if (dirExists && cache.extractCommit === commitHash) {
-      console.log(`   ✓ Extraction cached (commit ${commitHash.substring(0, 7)})`);
+      console.log(
+        `   ✓ Extraction cached (commit ${commitHash.substring(0, 7)})`
+      );
       return;
     }
     if (dirExists) {

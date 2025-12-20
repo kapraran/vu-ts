@@ -9,5 +9,3 @@ export interface CustomNetEvent {
   name: string;
   params?: CustomNetEventParam[];
 }
-
-

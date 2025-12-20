@@ -15,4 +15,3 @@ export interface CustomEventsConfig {
   server: CustomEvent[];
   shared: CustomEvent[];
 }
-

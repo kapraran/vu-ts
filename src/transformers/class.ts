@@ -15,12 +15,12 @@ export default function (
       // Use any[] as default for TPassArgs (tuple type for variadic args)
       classFile.generics = {
         TCallReturn: "any",
-        TPassArgs: "any[]"
+        TPassArgs: "any[]",
       };
     }
 
     // Update the Pass method to use TPassArgs generic with rest parameter
-    const passMethod = classFile.methods.find(m => m.name === "Pass");
+    const passMethod = classFile.methods.find((m) => m.name === "Pass");
     if (passMethod && passMethod.params.length > 0) {
       const argsParam = passMethod.params[0];
       if (argsParam.name === "args") {
@@ -30,8 +30,8 @@ export default function (
     }
 
     // Update Return(returnValue) method to use TCallReturn generic
-    const returnMethod = classFile.methods.find(m =>
-      m.name === "Return" && m.params.length > 0
+    const returnMethod = classFile.methods.find(
+      (m) => m.name === "Return" && m.params.length > 0
     );
     if (returnMethod && returnMethod.params.length > 0) {
       const returnValueParam = returnMethod.params[0];
@@ -41,7 +41,7 @@ export default function (
     }
 
     // Update Call method to use TCallReturn generic
-    const callMethod = classFile.methods.find(m => m.name === "Call");
+    const callMethod = classFile.methods.find((m) => m.name === "Call");
     if (callMethod && callMethod.returns.length > 0) {
       callMethod.returns[0].type = "TCallReturn";
     }

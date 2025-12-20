@@ -265,10 +265,14 @@ export async function main(options: MainOptions = {}) {
 
   // Pre-flight check: if generating template, validate project folder doesn't exist
   if (generateTemplate && modName && !refresh && !rm) {
-    const { checkTemplateFolderExists } = await import('./generators/ext-project');
+    const { checkTemplateFolderExists } = await import(
+      "./generators/ext-project"
+    );
     if (checkTemplateFolderExists(modName, outputDir)) {
       const folderPath = outputDir ? `${outputDir}/${modName}` : modName;
-      throw new Error(`Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`);
+      throw new Error(
+        `Folder "${folderPath}" already exists!\nUse --force to overwrite, or --refresh to update while preserving code.`
+      );
     }
   }
 

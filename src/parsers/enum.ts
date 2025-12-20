@@ -10,12 +10,13 @@ export interface CleanEnumFile extends CleanCommonFile {
 }
 
 export default function (data: RawEnumFile): CleanEnumFile {
-  // Handle both generated type (which may have values as { value: number }) 
+  // Handle both generated type (which may have values as { value: number })
   // and direct number values
   const values = Object.entries(data.values).reduce(
     (acc, [name, value]) => ({
       ...acc,
-      [name]: typeof value === "object" && "value" in value ? value.value : value,
+      [name]:
+        typeof value === "object" && "value" in value ? value.value : value,
     }),
     {} as { [name: string]: number }
   );

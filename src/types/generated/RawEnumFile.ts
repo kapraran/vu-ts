@@ -1,15 +1,15 @@
 export interface RawEnumFile {
-    name:         string;
-    type:         Type;
-    values:       { [key: string]: Value };
-    description?: string;
+  name: string;
+  type: Type;
+  values: { [key: string]: Value };
+  description?: string;
 }
 
 export enum Type {
-    Enum = "enum",
+  Enum = "enum",
 }
 
 export interface Value {
-    value:        number;
-    description?: string;
+  value: number;
+  description?: string;
 }

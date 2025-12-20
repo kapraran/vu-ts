@@ -24,7 +24,7 @@ export function detectModRoot(startDir?: string): string | null {
 
     // Move up one directory
     const parentDir = resolve(currentDir, "..");
-    
+
     // If we've reached the filesystem root, stop
     if (parentDir === currentDir) {
       break;
@@ -43,7 +43,6 @@ export function detectModRoot(startDir?: string): string | null {
 export function validateModRoot(modRoot: string): boolean {
   const extTsDir = join(modRoot, "ext-ts");
   const typingsDir = join(modRoot, "typings");
-  
+
   return existsSync(extTsDir) && existsSync(typingsDir);
 }
-

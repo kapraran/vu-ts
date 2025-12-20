@@ -2,7 +2,10 @@ import { resolve, join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { cwd } from "process";
 
-export function checkTemplateFolderExists(modName?: string, outputDir?: string): boolean {
+export function checkTemplateFolderExists(
+  modName?: string,
+  outputDir?: string
+): boolean {
   // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
   const folderName = modName || "vu-ts-mod-template";
@@ -15,7 +18,10 @@ export function checkTemplateFolderExists(modName?: string, outputDir?: string):
   return existsSync(TEMPLATE_PROJECT_DIR);
 }
 
-export function getTemplateFolderPath(modName?: string, outputDir?: string): string {
+export function getTemplateFolderPath(
+  modName?: string,
+  outputDir?: string
+): string {
   // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
   const folderName = modName || "vu-ts-mod-template";
@@ -26,7 +32,11 @@ export function getTemplateFolderPath(modName?: string, outputDir?: string): str
   return join(cwd(), folderName);
 }
 
-async function generateExtProject(modName?: string, refresh: boolean = false, outputDir?: string) {
+async function generateExtProject(
+  modName?: string,
+  refresh: boolean = false,
+  outputDir?: string
+) {
   // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
   const folderName = modName || "vu-ts-mod-template";
@@ -168,7 +178,9 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
     }
   }
   const configAction = refresh ? "Refreshed" : "Generated";
-  console.log(`   ✓ ${configAction} TypeScript configs for ${folderConfigs.length} folders`);
+  console.log(
+    `   ✓ ${configAction} TypeScript configs for ${folderConfigs.length} folders`
+  );
 
   // Generate tstl-plugin.js
   const pluginContent = `const path = require("path");
@@ -393,10 +405,7 @@ module.exports = plugin;
 `;
 
   // Always overwrite tstl-plugin.js (even in refresh mode)
-  await Bun.write(
-    join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"),
-    pluginContent
-  );
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"), pluginContent);
   const pluginAction = refresh ? "Refreshed" : "Generated";
   console.log(`   ✓ ${pluginAction} tstl-plugin.js`);
 
@@ -525,7 +534,9 @@ await Promise.all(processes.map((p) => p.exited));
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchScript);
 
   // Generate package.json (always overwrite)
-  const packageName = modName ? `vu-mod-${modName.toLowerCase().replace(/\s+/g, "-")}` : "vu-mod";
+  const packageName = modName
+    ? `vu-mod-${modName.toLowerCase().replace(/\s+/g, "-")}`
+    : "vu-mod";
   const packageJson = {
     name: packageName,
     version: "1.0.0",
@@ -559,9 +570,11 @@ ext/
 `;
   // Always overwrite .gitignore (even in refresh mode)
   await Bun.write(join(TEMPLATE_PROJECT_DIR, ".gitignore"), gitignore);
-  
+
   const filesAction = refresh ? "Refreshed" : "Generated";
-  console.log(`   ✓ ${filesAction} project files (watch.ts, README.md, mod.json, package.json, .gitignore)`);
+  console.log(
+    `   ✓ ${filesAction} project files (watch.ts, README.md, mod.json, package.json, .gitignore)`
+  );
   if (refresh) {
     console.log(`   ✓ Preserved __init__.ts files in client/server/shared`);
   }

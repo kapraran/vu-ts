@@ -32,13 +32,13 @@ function generateReturnsCode(m: MethodType) {
     .map((r) => {
       const baseType = fixTypeName(r.type);
       const nullable = r.nullable ? "| null" : "";
-      
+
       // Handle array types - use vector<T> instead of T[]
       if (r.array) {
         const vectorType = `vector<${baseType}${nullable}>`;
         return (r as ReturnType).table ? `LuaTable<${vectorType}>` : vectorType;
       }
-      
+
       // Handle non-array types
       const typeStr = `${baseType}${nullable}`;
       return (r as ReturnType).table ? `LuaTable<${typeStr}>` : typeStr;
@@ -54,7 +54,7 @@ function generateReturnsCode(m: MethodType) {
 function generatePropertyCode(p: PropType) {
   const baseType = fixTypeName(p.type);
   const nullable = p.nullable ? "| null" : "";
-  
+
   // Handle array types - use vector<T> instead of T[]
   let typeStr: string;
   if (p.array) {
@@ -62,7 +62,7 @@ function generatePropertyCode(p: PropType) {
   } else {
     typeStr = `${baseType}${p.table ? "[]" : ""}${nullable}`;
   }
-  
+
   return `${p.static ? "static" : ""} ${p.readOnly ? "readonly" : ""} ${
     p.name
   }: ${typeStr}`;
@@ -82,8 +82,26 @@ function generateOperatorCode(op: OperatorType, data: CleanClassFile): string {
       div: "/",
     };
     const operatorSymbol = operatorNames[op.type] || op.type;
-    
-    return `/**\n     * ${op.type === "add" ? "Addition" : op.type === "sub" ? "Subtraction" : op.type === "mult" ? "Multiplication" : "Division"} operator.\n     * @param other The right-hand side operand\n     * @returns The result of ${data.name} ${operatorSymbol} ${rhsType}\n     * @example\n     * const a = ${data.name}(1, 2, 3);\n     * const b = ${data.name}(4, 5, 6);\n     * const result = a.${op.type}(b); // Transpiles to: a ${operatorSymbol} b\n     */\n    ${op.type}: ${operatorType}<${data.name}, ${rhsType}>`;
+
+    return `/**\n     * ${
+      op.type === "add"
+        ? "Addition"
+        : op.type === "sub"
+        ? "Subtraction"
+        : op.type === "mult"
+        ? "Multiplication"
+        : "Division"
+    } operator.\n     * @param other The right-hand side operand\n     * @returns The result of ${
+      data.name
+    } ${operatorSymbol} ${rhsType}\n     * @example\n     * const a = ${
+      data.name
+    }(1, 2, 3);\n     * const b = ${
+      data.name
+    }(4, 5, 6);\n     * const result = a.${
+      op.type
+    }(b); // Transpiles to: a ${operatorSymbol} b\n     */\n    ${
+      op.type
+    }: ${operatorType}<${data.name}, ${rhsType}>`;
   }
 
   // Unsupported operators (eq, lt) - TypeScriptToLua doesn't support these as operator methods
@@ -130,20 +148,24 @@ export default function (data: CleanClassFile) {
 
   // Generate generic parameters if present
   const genericParams = data.generics
-    ? `<${Object.entries(data.generics).map(([name, defaultType]) => {
-        // Special handling for HookContext TPassArgs - it must extend array type
-        if (data.name === "HookContext" && name === "TPassArgs") {
-          return defaultType ? `${name} extends any[] = ${defaultType}` : `${name} extends any[]`;
-        }
-        return defaultType ? `${name} = ${defaultType}` : name;
-      }).join(", ")}>`
+    ? `<${Object.entries(data.generics)
+        .map(([name, defaultType]) => {
+          // Special handling for HookContext TPassArgs - it must extend array type
+          if (data.name === "HookContext" && name === "TPassArgs") {
+            return defaultType
+              ? `${name} extends any[] = ${defaultType}`
+              : `${name} extends any[]`;
+          }
+          return defaultType ? `${name} = ${defaultType}` : name;
+        })
+        .join(", ")}>`
     : "";
 
   return `
 
-  ${customConstructorAnnotation}declare ${data.declareAs} ${data.name}${genericParams} ${
-    data.inherits ? `extends ${data.inherits}` : ""
-  } {
+  ${customConstructorAnnotation}declare ${data.declareAs} ${
+    data.name
+  }${genericParams} ${data.inherits ? `extends ${data.inherits}` : ""} {
 
     ${data.properties.map(generatePropertyCode).join(";\n")}
 

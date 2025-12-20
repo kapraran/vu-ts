@@ -7,7 +7,11 @@ import { join, resolve } from "path";
 import { existsSync } from "fs";
 import { detectModRoot, validateModRoot } from "./utils/mod-detection";
 import { generateCustomEventsDeclarations } from "./generators/custom-events";
-import type { CustomEvent, CustomEventsConfig, CustomEventParam } from "./types/CustomEvent";
+import type {
+  CustomEvent,
+  CustomEventsConfig,
+  CustomEventParam,
+} from "./types/CustomEvent";
 
 export type EventContext = "client" | "server" | "shared";
 
@@ -40,15 +44,18 @@ const GENERATED_BLOCK_END = "// END VU-TS CUSTOM EVENTS (generated)";
  */
 function parseParam(paramStr: string): CustomEventParam {
   const [name, typeStr] = paramStr.split(":");
-  
+
   if (!name || !typeStr) {
-    throw new Error(`Invalid parameter format: "${paramStr}". Expected format: "name:type"`);
+    throw new Error(
+      `Invalid parameter format: "${paramStr}". Expected format: "name:type"`
+    );
   }
 
   // Check if type ends with "| null" or "|null" for nullable
   const trimmedType = typeStr.trim();
-  const nullable = trimmedType.endsWith("| null") || trimmedType.endsWith("|null");
-  const baseType = nullable 
+  const nullable =
+    trimmedType.endsWith("| null") || trimmedType.endsWith("|null");
+  const baseType = nullable
     ? trimmedType.replace(/\|\s*null$/, "").trim()
     : trimmedType;
 
@@ -62,9 +69,11 @@ function parseParam(paramStr: string): CustomEventParam {
 /**
  * Load custom events configuration from JSON file
  */
-async function loadCustomEventsConfig(modRoot: string): Promise<CustomEventsConfig> {
+async function loadCustomEventsConfig(
+  modRoot: string
+): Promise<CustomEventsConfig> {
   const configPath = join(modRoot, CUSTOM_EVENTS_JSON);
-  
+
   if (!existsSync(configPath)) {
     return {
       client: [],
@@ -114,7 +123,13 @@ async function upsertCustomEventsIntoTypesDts(
     `${GENERATED_BLOCK_END}\n`;
 
   const blockRegex = new RegExp(
-    `${GENERATED_BLOCK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${GENERATED_BLOCK_END.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n?`,
+    `${GENERATED_BLOCK_BEGIN.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    )}[\\s\\S]*?${GENERATED_BLOCK_END.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    )}\\n?`,
     "g"
   );
 
@@ -153,12 +168,16 @@ function validateContext(context: string): context is EventContext {
 /**
  * Execute the 'event add' command
  */
-export async function executeEventAddCommand(options: EventAddCommandOptions): Promise<void> {
+export async function executeEventAddCommand(
+  options: EventAddCommandOptions
+): Promise<void> {
   const { context, name, params = [], modRoot: providedModRoot } = options;
 
   // Validate context
   if (!validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server, shared`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server, shared`
+    );
   }
 
   // Validate event name
@@ -178,7 +197,7 @@ export async function executeEventAddCommand(options: EventAddCommandOptions): P
     if (!modRoot || !validateModRoot(modRoot)) {
       throw new Error(
         "Not in a mod directory. Please run this command from within a mod project directory " +
-        "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
+          "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
       );
     }
   }
@@ -212,19 +231,27 @@ export async function executeEventAddCommand(options: EventAddCommandOptions): P
 
   console.log(`✓ Added event "${name}" to ${context} context`);
   if (parsedParams.length > 0) {
-    console.log(`  Parameters: ${parsedParams.map((p) => `${p.name}: ${p.type}${p.nullable ? " | null" : ""}`).join(", ")}`);
+    console.log(
+      `  Parameters: ${parsedParams
+        .map((p) => `${p.name}: ${p.type}${p.nullable ? " | null" : ""}`)
+        .join(", ")}`
+    );
   }
 }
 
 /**
  * Execute the 'event remove' command
  */
-export async function executeEventRemoveCommand(options: EventRemoveCommandOptions): Promise<void> {
+export async function executeEventRemoveCommand(
+  options: EventRemoveCommandOptions
+): Promise<void> {
   const { context, name, modRoot: providedModRoot } = options;
 
   // Validate context
   if (!validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server, shared`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server, shared`
+    );
   }
 
   // Get mod root - use provided path or detect from current directory
@@ -241,7 +268,7 @@ export async function executeEventRemoveCommand(options: EventRemoveCommandOptio
     if (!modRoot || !validateModRoot(modRoot)) {
       throw new Error(
         "Not in a mod directory. Please run this command from within a mod project directory " +
-        "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
+          "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
       );
     }
   }
@@ -269,12 +296,16 @@ export async function executeEventRemoveCommand(options: EventRemoveCommandOptio
 /**
  * Execute the 'event list' command
  */
-export async function executeEventListCommand(options: EventListCommandOptions = {}): Promise<void> {
+export async function executeEventListCommand(
+  options: EventListCommandOptions = {}
+): Promise<void> {
   const { context, modRoot: providedModRoot } = options;
 
   // Validate context if provided
   if (context && !validateContext(context)) {
-    throw new Error(`Invalid context: "${context}". Must be one of: client, server, shared`);
+    throw new Error(
+      `Invalid context: "${context}". Must be one of: client, server, shared`
+    );
   }
 
   // Get mod root - use provided path or detect from current directory
@@ -291,7 +322,7 @@ export async function executeEventListCommand(options: EventListCommandOptions =
     if (!modRoot || !validateModRoot(modRoot)) {
       throw new Error(
         "Not in a mod directory. Please run this command from within a mod project directory " +
-        "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
+          "(should contain ext-ts/ and typings/ folders), or use --mod-root to specify the directory."
       );
     }
   }
@@ -300,7 +331,9 @@ export async function executeEventListCommand(options: EventListCommandOptions =
   const config = await loadCustomEventsConfig(modRoot);
 
   // Filter contexts if specified
-  const contextsToShow: EventContext[] = context ? [context] : ["client", "server", "shared"];
+  const contextsToShow: EventContext[] = context
+    ? [context]
+    : ["client", "server", "shared"];
 
   let hasEvents = false;
 
@@ -308,7 +341,11 @@ export async function executeEventListCommand(options: EventListCommandOptions =
     const events = config[ctx];
     if (events.length > 0) {
       hasEvents = true;
-      console.log(`\n${ctx.toUpperCase()} (${events.length} event${events.length !== 1 ? "s" : ""}):`);
+      console.log(
+        `\n${ctx.toUpperCase()} (${events.length} event${
+          events.length !== 1 ? "s" : ""
+        }):`
+      );
       for (const event of events) {
         console.log(`  • ${event.name}`);
         if (event.params && event.params.length > 0) {
@@ -328,4 +365,3 @@ export async function executeEventListCommand(options: EventListCommandOptions =
     console.log(msg);
   }
 }
-

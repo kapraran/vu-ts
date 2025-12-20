@@ -269,7 +269,9 @@ Examples:
         return;
       }
 
-      const context = argv.context as NetEventAddCommandOptions["context"] | undefined;
+      const context = argv.context as
+        | NetEventAddCommandOptions["context"]
+        | undefined;
       const name = argv.name as string | undefined;
 
       if (!context) {
