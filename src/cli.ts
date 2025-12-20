@@ -16,6 +16,13 @@ import {
   type EventAddCommandOptions,
   type EventListCommandOptions,
 } from "./cli-service-events";
+import {
+  executeNetEventAddCommand,
+  executeNetEventListCommand,
+  executeNetEventRemoveCommand,
+  type NetEventAddCommandOptions,
+  type NetEventListCommandOptions,
+} from "./cli-service-netevents";
 
 yargs(hideBin(process.argv))
   .scriptName("vu-ts")
@@ -193,6 +200,100 @@ Examples:
       }
 
       await executeEventRemoveCommand({
+        context,
+        name,
+        modRoot,
+      });
+    }
+  )
+
+  // NetEvent command (client/server)
+  .command(
+    "netevent <action>",
+    "Manage custom netevents for your mod",
+    (yargs) => {
+      return yargs
+        .positional("action", {
+          describe: "Action to perform",
+          type: "string",
+          choices: ["add", "remove", "list"],
+          demandOption: true,
+        })
+        .option("context", {
+          alias: "c",
+          describe: "NetEvent context (client or server)",
+          type: "string",
+          choices: ["client", "server"],
+        })
+        .option("name", {
+          alias: "n",
+          describe: 'NetEvent name (e.g., "MyMod:MyNetEvent")',
+          type: "string",
+        })
+        .option("param", {
+          alias: "p",
+          describe:
+            'NetEvent parameter in format "name:type" (can be used multiple times)',
+          type: "array",
+          default: [],
+        })
+        .option("mod-root", {
+          alias: "m",
+          describe:
+            "Mod root directory (default: current directory or auto-detect)",
+          type: "string",
+        })
+        .example(
+          '$0 netevent add --context server --name "MyMod:Foo" --param data:string',
+          "Add a server netevent (typed Broadcast*/SendTo* + Subscribe overloads)"
+        )
+        .example(
+          '$0 netevent add --context client --name "MyMod:Foo" --param data:string',
+          "Add a client netevent (typed Send* + Subscribe overloads)"
+        )
+        .example("$0 netevent list", "List all custom netevents")
+        .example(
+          "$0 netevent list --context server",
+          "List only server netevents"
+        );
+    },
+    async (argv) => {
+      const action = argv.action as "add" | "remove" | "list";
+      const modRoot = argv["mod-root"] as string | undefined;
+
+      if (action === "list") {
+        await executeNetEventListCommand({
+          context: argv.context as NetEventListCommandOptions["context"],
+          modRoot,
+        });
+        return;
+      }
+
+      const context = argv.context as NetEventAddCommandOptions["context"] | undefined;
+      const name = argv.name as string | undefined;
+
+      if (!context) {
+        throw new Error(
+          `Missing required option: --context (client|server) for "netevent ${action}"`
+        );
+      }
+      if (!name) {
+        throw new Error(
+          `Missing required option: --name for "netevent ${action}"`
+        );
+      }
+
+      if (action === "add") {
+        await executeNetEventAddCommand({
+          context,
+          name,
+          params: (argv.param as unknown[]).map(String),
+          modRoot,
+        });
+        return;
+      }
+
+      await executeNetEventRemoveCommand({
         context,
         name,
         modRoot,
