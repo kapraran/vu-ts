@@ -35,14 +35,6 @@ async function generateExtProject(modName?: string, refresh: boolean = false, ou
     : join(cwd(), folderName);
   const EXT_TS_DIR = join(TEMPLATE_PROJECT_DIR, "ext-ts");
 
-  // Check if folder already exists (safety check - should have been checked earlier)
-  // Skip this check in refresh mode
-  if (existsSync(TEMPLATE_PROJECT_DIR) && !refresh) {
-    console.error(`\n❌ Error: Folder "${TEMPLATE_PROJECT_DIR}" already exists!`);
-    console.error(`   Please choose a different name or remove the existing folder.`);
-    process.exit(1);
-  }
-
   // In refresh mode, preserve __init__.ts files
   const preservedInitFiles: Record<string, string> = {};
   if (refresh) {
