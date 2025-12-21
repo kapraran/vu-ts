@@ -1,3 +1,9 @@
+> **⚠️ WIP - Work In Progress**
+> 
+> **This project is currently under active development and is not recommended for production use at this time.**
+> 
+> Features may be incomplete, APIs may change, and there may be breaking changes in future releases. Use at your own risk.
+
 # VU TypeScript Generator
 
 A TypeScript declaration file generator for VU-Docs. This tool downloads the VU-Docs repository, parses YAML documentation files, and generates TypeScript declaration files (`.d.ts`) organized by namespace.

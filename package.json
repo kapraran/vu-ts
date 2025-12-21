@@ -16,9 +16,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "bin": {
-    "vu-ts": "./src/cli.ts"
+    "vu-ts": "bin/vu-ts.js"
   },
   "files": [
+    "bin",
     "src",
     "README.md",
     "LICENSE"
