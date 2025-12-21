@@ -1,8 +1,9 @@
 import { Glob } from "bun";
 import { join } from "path";
+import { tmpdir } from "os";
 import YAML from "yaml";
 
-const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
+const pathPrefix = join(tmpdir(), "vu-ts-cache", "extracted", "VU-Docs-master", "types");
 
 type FieldInfo = {
   types: Set<string>;

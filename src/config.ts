@@ -1,9 +1,10 @@
-import { resolve } from "path";
+import { resolve, join } from "path";
+import { tmpdir } from "os";
 
 export const VU_DOCS_REPO_URL =
   "https://github.com/EmulatorNexus/VU-Docs/archive/master.zip";
 
-export const CACHE_DIR = resolve(import.meta.dir || __dirname, "../.cache");
+export const CACHE_DIR = join(tmpdir(), "vu-ts-cache");
 
 export const REPO_ZIP_DL_DIR = resolve(CACHE_DIR, "master.zip");
 

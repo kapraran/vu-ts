@@ -2,8 +2,9 @@ const YAML = require("yaml");
 const { resolve, join } = require("path");
 const { parseArgs } = require("node:util");
 const { Glob } = require("bun");
+const { tmpdir } = require("os");
 
-const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
+const pathPrefix = join(tmpdir(), "vu-ts-cache", "extracted", "VU-Docs-master", "types");
 const { values: argv, positionals } = parseArgs({
   args: process.argv.slice(2),
   options: {

@@ -1,5 +1,6 @@
 const { parseArgs } = require("node:util");
 const { join } = require("path");
+const { tmpdir } = require("os");
 const YAML = require("yaml");
 const { Glob } = require("bun");
 const { JSONPath } = require("jsonpath-plus");
@@ -21,7 +22,7 @@ const { values: argv, positionals } = parseArgs({
   allowPositionals: true,
 });
 
-const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
+const pathPrefix = join(tmpdir(), "vu-ts-cache", "extracted", "VU-Docs-master", "types");
 
 function mergeByKey(results, { useType }) {
   return results.reduce((mergedResults, result) => {

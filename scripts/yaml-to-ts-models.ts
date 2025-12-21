@@ -1,10 +1,11 @@
 import { Glob } from "bun";
 import { join } from "path";
+import { tmpdir } from "os";
 import YAML from "yaml";
 import { spawn } from "bun";
 
-const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
-const jsonDir = ".cache/json-by-type";
+const pathPrefix = join(tmpdir(), "vu-ts-cache", "extracted", "VU-Docs-master", "types");
+const jsonDir = join(tmpdir(), "vu-ts-cache", "json-by-type");
 const generatedDir = "src/types/generated";
 
 async function main() {
