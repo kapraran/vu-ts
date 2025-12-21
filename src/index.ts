@@ -56,8 +56,6 @@ const pipelineMap = {
   },
 };
 
-const pathPrefix = ".cache/extracted/VU-Docs-master/types/";
-
 export interface MainOptions {
   outputDir?: string;
   generateTemplate?: boolean;
@@ -74,6 +72,10 @@ async function buildTypes(
   modName?: string
 ) {
   const parseResults = new Map<string, ParseResult<any>>();
+
+  // Construct the path to the types directory from docsDir
+  // docsDir is the extraction directory, which contains VU-Docs-master/types/
+  const pathPrefix = join(docsDir, "VU-Docs-master", "types");
 
   // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
   const globPaths = ["**/*.yaml"];
@@ -357,11 +359,13 @@ export async function main(options: MainOptions = {}) {
   console.log("\n✅ Done!");
 }
 function resolveNamespace(filePath: string): typeNamespace {
-  if (filePath.match(/VU-Docs-master\\types\\client/i)) return "client";
-  if (filePath.match(/VU-Docs-master\\types\\server/i)) return "server";
-  if (filePath.match(/VU-Docs-master\\types\\fb/i)) return "fb";
+  // Handle both Windows (\) and Unix (/) path separators
+  if (filePath.match(/VU-Docs-master[\\/]types[\\/]client/i)) return "client";
+  if (filePath.match(/VU-Docs-master[\\/]types[\\/]server/i)) return "server";
+  if (filePath.match(/VU-Docs-master[\\/]types[\\/]fb/i)) return "fb";
   return "shared";
 }
 function resolveRelPath(filePath: string): string {
-  return filePath.replace(/^.*\\VU-Docs-master\\types\\/i, "");
+  // Handle both Windows (\) and Unix (/) path separators
+  return filePath.replace(/^.*[\\/]VU-Docs-master[\\/]types[\\/]/i, "");
 }
