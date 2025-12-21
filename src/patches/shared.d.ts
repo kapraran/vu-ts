@@ -1,6 +1,6 @@
 declare namespace json {
   export function encode(data: {}): string;
-  export function decode(data: string): {};
+  export function decode<T>(data: string): T;
 }
 
 declare interface vector<T> extends LuaIterable<T> {
