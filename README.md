@@ -2,11 +2,45 @@
 
 A TypeScript declaration file generator for VU-Docs. This tool downloads the VU-Docs repository, parses YAML documentation files, and generates TypeScript declaration files (`.d.ts`) organized by namespace.
 
+## Installation
+
+### Using bunx (recommended - no installation needed)
+
+Run commands directly without installing:
+
+```bash
+bunx @kapraran/vu-ts init my-mod
+bunx @kapraran/vu-ts types
+bunx @kapraran/vu-ts event add --context server --name "MyMod:Event"
+```
+
+### Global Installation
+
+Install globally to use the `vu-ts` command anywhere:
+
+```bash
+# Using Bun
+bun install -g @kapraran/vu-ts
+
+# Or using npm
+npm install -g @kapraran/vu-ts
+```
+
+After installation, use the `vu-ts` command directly:
+
+```bash
+vu-ts init my-mod
+vu-ts types
+vu-ts event add --context server --name "MyMod:Event"
+```
+
 ## Requirements
 
 - [Bun](https://bun.sh) (latest version)
 
-## Installation
+## Local Development
+
+If you want to contribute or modify the tool locally:
 
 ```bash
 bun install

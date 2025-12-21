@@ -1,9 +1,39 @@
 {
-  "name": "vu-ts",
+  "name": "@kapraran/vu-ts",
   "version": "1.0.0",
+  "description": "A TypeScript declaration file generator for VU-Docs. Generates TypeScript types from YAML documentation files.",
+  "keywords": [
+    "vu",
+    "vu-docs",
+    "typescript",
+    "type-generator",
+    "modding",
+    "battlefield",
+    "venice-unleashed"
+  ],
+  "author": "kapraran",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
   "bin": {
     "vu-ts": "./src/cli.ts"
   },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kapraran/vu-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kapraran/vu-ts/issues"
+  },
+  "homepage": "https://github.com/kapraran/vu-ts#readme",
   "scripts": {
     "start": "bun src/cli.ts",
     "dev": "bun --watch src/cli.ts",

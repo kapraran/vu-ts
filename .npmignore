@@ -1,0 +1,42 @@
+# Development files
+.cache/
+node_modules/
+test-mod/
+typings/
+dist/
+ext/
+vu-ts-mod-template/
+
+# Development scripts
+scripts/
+inspect.js
+validate.js
+
+# Config files (keep tsconfig.json if needed for consumers)
+# tsconfig.json
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.bun/
+*.tsbuildinfo
+
