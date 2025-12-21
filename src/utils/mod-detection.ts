@@ -46,3 +46,4 @@ export function validateModRoot(modRoot: string): boolean {
 
   return existsSync(extTsDir) && existsSync(typingsDir);
 }
+

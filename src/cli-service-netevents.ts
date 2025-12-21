@@ -133,7 +133,7 @@ function setNetEventsArray(
 async function upsertCustomNetEventsIntoTypesDts(
   modRoot: string,
   ctx: NetEventContext,
-  netevents: CustomNetEvent[]
+  config: CustomConfigAny
 ): Promise<void> {
   const typesDPath = join(modRoot, "ext-ts", ctx, TYPES_D_TS);
   if (!existsSync(typesDPath)) {
@@ -142,10 +142,16 @@ async function upsertCustomNetEventsIntoTypesDts(
     );
   }
 
+  // Get own NetEvents (full declarations) and opposite NetEvents (Subscribe only)
+  const ownNetEvents = getNetEventsArray(config, ctx);
+  const oppositeContext: NetEventContext = ctx === "client" ? "server" : "client";
+  const oppositeNetEvents = getNetEventsArray(config, oppositeContext);
+
   const content = await Bun.file(typesDPath).text();
   const generatedBody = generateCustomNetEventsDeclarations(
     ctx,
-    netevents
+    ownNetEvents,
+    oppositeNetEvents
   ).trimEnd();
   const generatedBlock =
     `${GENERATED_BLOCK_BEGIN}\n` +
@@ -164,6 +170,17 @@ async function upsertCustomNetEventsIntoTypesDts(
     : content.trimEnd() + "\n\n" + generatedBlock;
 
   await Bun.write(typesDPath, newContent);
+}
+
+/**
+ * Regenerate both client and server types.d.ts files with updated NetEvent declarations
+ */
+async function regenerateAllNetEventTypes(
+  modRoot: string,
+  config: CustomConfigAny
+): Promise<void> {
+  await upsertCustomNetEventsIntoTypesDts(modRoot, "client", config);
+  await upsertCustomNetEventsIntoTypesDts(modRoot, "server", config);
 }
 
 function resolveModRootOrThrow(providedModRoot?: string): string {
@@ -218,7 +235,8 @@ export async function executeNetEventAddCommand(
   setNetEventsArray(config, context, arr);
   await saveConfig(modRoot, config);
 
-  await upsertCustomNetEventsIntoTypesDts(modRoot, context, arr);
+  // Regenerate both client and server types.d.ts files
+  await regenerateAllNetEventTypes(modRoot, config);
 
   console.log(`✓ Added netevent "${name}" to ${context} context`);
 }
@@ -247,7 +265,8 @@ export async function executeNetEventRemoveCommand(
   setNetEventsArray(config, context, arr);
   await saveConfig(modRoot, config);
 
-  await upsertCustomNetEventsIntoTypesDts(modRoot, context, arr);
+  // Regenerate both client and server types.d.ts files
+  await regenerateAllNetEventTypes(modRoot, config);
 
   console.log(`✓ Removed netevent "${name}" from ${context} context`);
 }
@@ -266,6 +285,9 @@ export async function executeNetEventListCommand(
   const modRoot = resolveModRootOrThrow(providedModRoot);
   const config = await loadConfig(modRoot);
 
+  // Keep the generated types blocks in sync even when just listing
+  await regenerateAllNetEventTypes(modRoot, config);
+
   const contextsToShow: NetEventContext[] = context
     ? [context]
     : ["client", "server"];
@@ -273,8 +295,6 @@ export async function executeNetEventListCommand(
 
   for (const ctx of contextsToShow) {
     const arr = getNetEventsArray(config, ctx);
-    // Keep the generated types block in sync even when just listing
-    await upsertCustomNetEventsIntoTypesDts(modRoot, ctx, arr);
     if (arr.length === 0) continue;
     hasAny = true;
     console.log(

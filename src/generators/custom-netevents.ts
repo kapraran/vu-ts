@@ -24,16 +24,14 @@ function buildCallbackType(paramsList: string, prefix: string): string {
 
 export function generateCustomNetEventsDeclarations(
   ctx: NetEventContext,
-  netEvents: CustomNetEvent[]
+  ownNetEvents: CustomNetEvent[],
+  oppositeNetEvents: CustomNetEvent[] = []
 ): string {
-  if (netEvents.length === 0) {
-    return `declare namespace NetEvents {
-}
-`;
-  }
+  const allBlocks: string[] = [];
 
-  const blocks = netEvents
-    .map((evt) => {
+  // Generate full declarations for ownNetEvents (Subscribe + sending methods)
+  if (ownNetEvents.length > 0) {
+    const ownBlocks = ownNetEvents.map((evt) => {
       const paramsList = buildParamsList(evt);
 
       // Subscribe overloads
@@ -129,11 +127,41 @@ export function generateCustomNetEventsDeclarations(
           : `${serverBroadcastOverloads}\n\n${serverSendToOverloads}`.trim();
 
       return `${subscribeBase}\n\n${sending}`.trim();
-    })
-    .join("\n\n");
+    });
+    allBlocks.push(...ownBlocks);
+  }
+
+  // Generate Subscribe-only declarations for oppositeNetEvents
+  if (oppositeNetEvents.length > 0) {
+    const oppositeBlocks = oppositeNetEvents.map((evt) => {
+      const paramsList = buildParamsList(evt);
+
+      // Client context receiving from server: no player parameter
+      // Server context receiving from client: player parameter as first arg
+      const subscribeBase =
+        ctx === "client"
+          ? `  function Subscribe(
+    eventName: "${evt.name}",
+    callback: ${buildCallbackType(paramsList, "this: void")}
+  ): NetEvent;`
+          : `  function Subscribe(
+    eventName: "${evt.name}",
+    callback: ${buildCallbackType(paramsList, "this: void, player: Player")}
+  ): NetEvent;`;
+
+      return subscribeBase;
+    });
+    allBlocks.push(...oppositeBlocks);
+  }
+
+  if (allBlocks.length === 0) {
+    return `declare namespace NetEvents {
+}
+`;
+  }
 
   return `declare namespace NetEvents {
-${blocks}
+${allBlocks.join("\n\n")}
 }
 `;
 }
