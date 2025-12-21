@@ -29,24 +29,17 @@ export function generateCustomNetEventsDeclarations(
 ): string {
   const allBlocks: string[] = [];
 
-  // Generate full declarations for ownNetEvents (Subscribe + sending methods)
+  // Generate sending methods only for ownNetEvents (no Subscribe/Unsubscribe)
+  // Server NetEvents: server sends to clients (server has Broadcast*/SendTo*, clients have Subscribe)
+  // Client NetEvents: client sends to server (client has Send*, server has Subscribe)
   if (ownNetEvents.length > 0) {
     const ownBlocks = ownNetEvents.map((evt) => {
       const paramsList = buildParamsList(evt);
 
-      // Subscribe overloads
-      const subscribeBase =
-        ctx === "client"
-          ? `  function Subscribe(
-    eventName: "${evt.name}",
-    callback: ${buildCallbackType(paramsList, "this: void")}
-  ): NetEvent;`
-          : `  function Subscribe(
-    eventName: "${evt.name}",
-    callback: ${buildCallbackType(paramsList, "this: void, player: Player")}
-  ): NetEvent;`;
+      // Event section comment (IDE-friendly region)
+      const eventComment = `  //#region ${evt.name}`;
 
-      // Sending overloads
+      // Sending overloads only (no Subscribe/Unsubscribe for own context)
       const clientSendOverloads =
         ctx === "client"
           ? [
@@ -126,7 +119,7 @@ export function generateCustomNetEventsDeclarations(
           ? clientSendOverloads
           : `${serverBroadcastOverloads}\n\n${serverSendToOverloads}`.trim();
 
-      return `${subscribeBase}\n\n${sending}`.trim();
+      return `${eventComment}\n${sending}\n  //#endregion`;
     });
     allBlocks.push(...ownBlocks);
   }
@@ -135,6 +128,9 @@ export function generateCustomNetEventsDeclarations(
   if (oppositeNetEvents.length > 0) {
     const oppositeBlocks = oppositeNetEvents.map((evt) => {
       const paramsList = buildParamsList(evt);
+
+      // Event section comment (IDE-friendly region)
+      const eventComment = `  //#region ${evt.name}`;
 
       // Client context receiving from server: no player parameter
       // Server context receiving from client: player parameter as first arg
@@ -149,7 +145,12 @@ export function generateCustomNetEventsDeclarations(
     callback: ${buildCallbackType(paramsList, "this: void, player: Player")}
   ): NetEvent;`;
 
-      return subscribeBase;
+      // Unsubscribe overload
+      const unsubscribeOverload = `  function Unsubscribe(
+    eventName: "${evt.name}"
+  ): void;`;
+
+      return `${eventComment}\n${subscribeBase}\n\n${unsubscribeOverload}\n  //#endregion`;
     });
     allBlocks.push(...oppositeBlocks);
   }
