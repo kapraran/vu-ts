@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../ext/{{folder}}",
+    "baseUrl": "."{{#if hasSharedPath}},
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    }{{/if}}
+  },
+  "include": ["./**/*", "./types.d.ts"]
+}
+

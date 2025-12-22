@@ -1,0 +1,4 @@
+{{#each types}}
+/// <reference path="../../typings/{{this}}" />
+{{/each}}
+

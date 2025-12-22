@@ -1,6 +1,7 @@
 import { resolve, join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { cwd } from "process";
+import { loadAndRenderTemplate } from "../utils/template";
 
 export function checkTemplateFolderExists(
   modName?: string,
@@ -37,6 +38,16 @@ async function generateExtProject(
   refresh: boolean = false,
   outputDir?: string
 ) {
+  // Get the template directory path (relative to this file)
+  // import.meta.dir points to src/generators/, so go up to project root
+  const templatesDir = join(
+    import.meta.dir || __dirname,
+    "..",
+    "..",
+    "templates",
+    "mod-template"
+  );
+
   // If outputDir is specified, the template folder is outputDir/modName
   // Otherwise, create vu-ts-mod-template in project root
   const folderName = modName || "vu-ts-mod-template";
@@ -95,27 +106,12 @@ async function generateExtProject(
     console.log(`   ✓ TypeScript definition files ready (${foundFiles} files)`);
   }
 
-  // Generate tsconfig.base.json
-  const baseConfig = {
-    compilerOptions: {
-      target: "ESNext",
-      lib: ["ESNext"],
-      types: ["@typescript-to-lua/language-extensions", "lua-types/5.1"],
-      moduleResolution: "bundler",
-      strict: true,
-      skipLibCheck: true,
-    },
-    tstl: {
-      luaTarget: "5.1",
-      luaPlugins: [{ name: "../../tstl-plugin.js" }],
-    },
-    exclude: ["node_modules"],
-  };
-
-  // Always overwrite tsconfig.base.json (even in refresh mode)
+  // Generate tsconfig.base.json (copy from template, no variables)
+  const baseConfigTemplate = join(templatesDir, "tsconfig.base.json");
+  const baseConfigContent = await Bun.file(baseConfigTemplate).text();
   await Bun.write(
     join(TEMPLATE_PROJECT_DIR, "tsconfig.base.json"),
-    JSON.stringify(baseConfig, null, 2) + "\n"
+    baseConfigContent
   );
 
   // No root tsconfig.json for building - each folder builds separately
@@ -138,34 +134,25 @@ async function generateExtProject(
   ];
 
   for (const { folder, types } of folderConfigs) {
-    const config = {
-      extends: "../../tsconfig.base.json",
-      compilerOptions: {
-        outDir: `../../ext/${folder}`,
-        baseUrl: ".",
-        ...(folder !== "shared" && {
-          paths: {
-            "@shared/*": ["../shared/*"],
-          },
-        }),
-      },
-      include: ["./**/*", "./types.d.ts"],
-    };
-
-    // Always overwrite tsconfig.json and types.d.ts (even in refresh mode)
+    // Generate tsconfig.json from template
+    const tsconfigTemplate = join(templatesDir, "ext-ts", "tsconfig.json.template");
+    const tsconfigContent = await loadAndRenderTemplate(tsconfigTemplate, {
+      folder,
+      hasSharedPath: folder !== "shared",
+    });
     await Bun.write(
       join(EXT_TS_DIR, folder, "tsconfig.json"),
-      JSON.stringify(config, null, 2) + "\n"
+      tsconfigContent + "\n"
     );
 
-    // Generate types.d.ts with references to typings in root typings/
-    const typeReferences = types
-      .map((type) => `/// <reference path="../../typings/${type}" />`)
-      .join("\n");
-
+    // Generate types.d.ts from template
+    const typesDTemplate = join(templatesDir, "ext-ts", "types.d.ts.template");
+    const typesDContent = await loadAndRenderTemplate(typesDTemplate, {
+      types,
+    });
     await Bun.write(
       join(EXT_TS_DIR, folder, "types.d.ts"),
-      typeReferences + "\n"
+      typesDContent + "\n"
     );
 
     // Create __init__.ts if it doesn't exist, or restore preserved content in refresh mode
@@ -182,277 +169,45 @@ async function generateExtProject(
     `   ✓ ${configAction} TypeScript configs for ${folderConfigs.length} folders`
   );
 
-  // Generate tstl-plugin.js
-  const pluginContent = `const path = require("path");
-const fs = require("fs");
-
-/**
- * TypeScriptToLua plugin that adds __shared/ prefix to all require paths
- * that resolve to files in the ext-ts/shared/ directory.
- *
- * This ensures that all imports from shared code use the __shared/ prefix
- * in the generated Lua code, even when importing from within shared itself.
- */
-const plugin = {
-  afterPrint(program, options, emitHost, result) {
-    // Build a set of all shared modules that exist
-    // We scan the ext-ts/shared directory to find all .ts files
-    const sharedModules = new Set();
-
-    // Find the shared directory from the project options
-    const configDir = options.configFilePath ? path.dirname(options.configFilePath) : process.cwd();
-
-    // The shared folder is relative to ext-ts/{client,server,shared}
-    // We need to find the ext-ts base and then the shared folder
-    let sharedDir;
-    const possiblePaths = [
-      path.resolve(configDir, 'shared'),           // From ext-ts/shared/tsconfig.json -> ext-ts/shared
-      path.resolve(configDir, '..', 'shared'),      // From ext-ts/client/tsconfig.json -> ext-ts/shared
-      path.resolve(configDir, '../..', 'ext-ts/shared'), // From ext-ts/shared/tsconfig.json but going up
-    ];
-
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        sharedDir = p;
-        break;
-      }
-    }
-
-    if (sharedDir) {
-      // Recursively find all .ts files in shared directory
-      const scanDir = (dir, basePath = '') => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            scanDir(path.join(dir, entry.name), path.join(basePath, entry.name));
-          } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
-            // Add module path without extension and without index
-            let modulePath = path.join(basePath, entry.name.slice(0, -3));
-            // Convert to forward slashes
-            modulePath = modulePath.replace(/\\\\/g, '/');
-            // Remove /index suffix
-            modulePath = modulePath.replace(/\\/index$/, '');
-            sharedModules.add(modulePath);
-          }
-        }
-      };
-      scanDir(sharedDir);
-    }
-
-    // Debug: log what we found
-    if (sharedModules.size > 0) {
-      console.log("[TSTL Plugin] Found shared modules:", Array.from(sharedModules));
-    } else {
-      console.log("[TSTL Plugin] No shared modules found, searched:", possiblePaths);
-    }
-
-    // Transform require() statements in ALL output files
-    for (const file of result) {
-      const outputPath = file.outputPath || "";
-
-      // Transform all require statements that reference shared modules
-      const originalCode = file.code;
-      file.code = file.code.replace(
-        /require\\s*\\(\\s*["']([^"']+)["']\\s*\\)/g,
-        (match, moduleName) => {
-          // Skip if already has __shared/ prefix
-          if (moduleName.startsWith("__shared/")) {
-            return match;
-          }
-
-          // Skip special modules
-          if (moduleName === "lualib_bundle" ||
-              moduleName.startsWith("lualib_bundle") ||
-              moduleName.includes("node_modules")) {
-            return match;
-          }
-
-          // Check if this is a shared module
-          if (sharedModules.has(moduleName)) {
-            console.log("[TSTL Plugin] Transforming require:", moduleName, "-> __shared/" + moduleName);
-            return "require(\\"__shared/" + moduleName + "\\")";
-          }
-
-          return match;
-        }
-      );
-
-      if (file.code !== originalCode) {
-        console.log("[TSTL Plugin] Modified file:", outputPath);
-      }
-    }
-  }
-};
-
-module.exports = plugin;
-`;
-
-  // Always overwrite tstl-plugin.js (even in refresh mode)
+  // Generate tstl-plugin.js (copy from template, no variables)
+  const pluginTemplate = join(templatesDir, "tstl-plugin.js");
+  const pluginContent = await Bun.file(pluginTemplate).text();
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"), pluginContent);
   const pluginAction = refresh ? "Refreshed" : "Generated";
   console.log(`   ✓ ${pluginAction} tstl-plugin.js`);
 
-  // Generate README.md
-  const readme = `# Mod Template
+  // Generate README.md (copy from template, no variables)
+  const readmeTemplate = join(templatesDir, "README.md");
+  const readmeContent = await Bun.file(readmeTemplate).text();
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "README.md"), readmeContent);
 
-This template provides a structure for Venice Unleashed mods with TypeScript type safety.
-
-## Folder Structure
-
-- **\`ext-ts/client/\`** - Client-side code (runs in the game client)
-  - Has access to: \`shared.d.ts\` and \`client.d.ts\` types
-- **\`ext-ts/server/\`** - Server-side code (runs on the server)
-  - Has access to: \`shared.d.ts\` and \`server.d.ts\` types
-- **\`ext-ts/shared/\`** - Shared code (used by both client and server)
-  - Has access to: \`shared.d.ts\` types only
-- **\`typings/\`** - TypeScript declaration files for Venice Unleashed API
-
-## Type Safety
-
-Each folder has its own \`tsconfig.json\` that restricts which type definitions are available:
-
-- Files in \`ext-ts/client/\` cannot access server-only types
-- Files in \`ext-ts/server/\` cannot access client-only types
-- Files in \`ext-ts/shared/\` can only access shared types
-
-This is enforced through the \`types.d.ts\` files in each folder, which use triple-slash directives to explicitly reference only the allowed type definitions.
-
-## Usage
-
-1. Place your client-side code in \`ext-ts/client/\`
-2. Place your server-side code in \`ext-ts/server/\`
-3. Place shared code in \`ext-ts/shared/\`
-4. TypeScript will automatically enforce type restrictions based on the folder
-
-## Building
-
-To compile TypeScript to Lua, use:
-
-\`\`\`bash
-# Build all folders (client, server, shared)
-bun run build
-
-# Watch mode - rebuilds all folders on file changes
-bun run watch
-
-# Build individual folders
-bun run build:client
-bun run build:server
-bun run build:shared
-
-# Watch individual folders
-bun run watch:client
-bun run watch:server
-bun run watch:shared
-\`\`\`
-
-The compiled Lua files will be output to \`../ext/\` with the same folder structure (\`ext/client/\`, \`ext/server/\`, \`ext/shared/\`). Each folder gets its own \`lualib_bundle.lua\` so they are self-contained.
-
-## Regenerating Types
-
-To refresh the type definitions, run the generator command:
-
-\`\`\`bash
-bunx vu-ts generate
-\`\`\`
-`;
-
-  // Always overwrite README.md (even in refresh mode)
-  await Bun.write(join(TEMPLATE_PROJECT_DIR, "README.md"), readme);
-
-  // Generate mod.json (always overwrite)
+  // Generate mod.json from template
   const modDisplayName = modName || "My first mod";
-  const modJson = {
-    Name: modDisplayName,
-    Description: `A Venice Unleashed mod built with TypeScript`,
-    Version: "1.0.0",
-    HasVeniceEXT: true,
-    Dependencies: {
-      veniceext: "^1.0.0",
-    },
-  };
+  const modJsonTemplate = join(templatesDir, "mod.json.template");
+  const modJsonContent = await loadAndRenderTemplate(modJsonTemplate, {
+    modDisplayName,
+  });
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "mod.json"), modJsonContent);
 
-  await Bun.write(
-    join(TEMPLATE_PROJECT_DIR, "mod.json"),
-    JSON.stringify(modJson, null, 2) + "\n"
-  );
+  // Generate watch.ts (copy from template, no variables)
+  const watchTemplate = join(templatesDir, "watch.ts");
+  const watchContent = await Bun.file(watchTemplate).text();
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchContent);
 
-  // Generate watch.ts script
-  const watchScript = `#!/usr/bin/env bun
-
-// Watch script that runs all three TypeScriptToLua watch processes in parallel
-const processes = [
-  Bun.spawn(["tstl", "-p", "ext-ts/client/tsconfig.json", "--watch"], {
-    stdout: "inherit",
-    stderr: "inherit",
-  }),
-  Bun.spawn(["tstl", "-p", "ext-ts/server/tsconfig.json", "--watch"], {
-    stdout: "inherit",
-    stderr: "inherit",
-  }),
-  Bun.spawn(["tstl", "-p", "ext-ts/shared/tsconfig.json", "--watch"], {
-    stdout: "inherit",
-    stderr: "inherit",
-  }),
-];
-
-console.log("👀 Watching client, server, and shared folders...");
-console.log("Press Ctrl+C to stop\\n");
-
-// Handle graceful shutdown
-process.on("SIGINT", async () => {
-  console.log("\\n🛑 Stopping watch processes...");
-  for (const proc of processes) {
-    proc.kill();
-  }
-  await Promise.all(processes.map((p) => p.exited));
-  process.exit(0);
-});
-
-// Wait for all processes (they run indefinitely in watch mode)
-await Promise.all(processes.map((p) => p.exited));
-`;
-
-  // Always overwrite watch.ts (even in refresh mode)
-  await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchScript);
-
-  // Generate package.json (always overwrite)
+  // Generate package.json from template
   const packageName = modName
     ? `vu-mod-${modName.toLowerCase().replace(/\s+/g, "-")}`
     : "vu-mod";
-  const packageJson = {
-    name: packageName,
-    version: "1.0.0",
-    description: "Venice Unleashed mod with TypeScript type safety",
-    scripts: {
-      build:
-        "tstl -p ext-ts/client/tsconfig.json && tstl -p ext-ts/server/tsconfig.json && tstl -p ext-ts/shared/tsconfig.json",
-      "build:client": "tstl -p ext-ts/client/tsconfig.json",
-      "build:server": "tstl -p ext-ts/server/tsconfig.json",
-      "build:shared": "tstl -p ext-ts/shared/tsconfig.json",
-      watch: "bun watch.ts",
-      "watch:client": "tstl -p ext-ts/client/tsconfig.json --watch",
-      "watch:server": "tstl -p ext-ts/server/tsconfig.json --watch",
-      "watch:shared": "tstl -p ext-ts/shared/tsconfig.json --watch",
-    },
-    dependencies: {
-      "@typescript-to-lua/language-extensions": "^1.19.0",
-      "lua-types": "^2.13.1",
-      "typescript-to-lua": "^1.33.0",
-    },
-  };
+  const packageJsonTemplate = join(templatesDir, "package.json.template");
+  const packageJsonContent = await loadAndRenderTemplate(packageJsonTemplate, {
+    packageName,
+  });
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, "package.json"), packageJsonContent);
 
-  await Bun.write(
-    join(TEMPLATE_PROJECT_DIR, "package.json"),
-    JSON.stringify(packageJson, null, 2) + "\n"
-  );
-
-  // Generate .gitignore
-  const gitignore = `node_modules/
-ext/
-`;
-  // Always overwrite .gitignore (even in refresh mode)
-  await Bun.write(join(TEMPLATE_PROJECT_DIR, ".gitignore"), gitignore);
+  // Generate .gitignore (copy from template, no variables)
+  const gitignoreTemplate = join(templatesDir, ".gitignore");
+  const gitignoreContent = await Bun.file(gitignoreTemplate).text();
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, ".gitignore"), gitignoreContent);
 
   const filesAction = refresh ? "Refreshed" : "Generated";
   console.log(

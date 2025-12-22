@@ -1,0 +1,21 @@
+{
+  "name": "{{packageName}}",
+  "version": "1.0.0",
+  "description": "Venice Unleashed mod with TypeScript type safety",
+  "scripts": {
+    "build": "tstl -p ext-ts/client/tsconfig.json && tstl -p ext-ts/server/tsconfig.json && tstl -p ext-ts/shared/tsconfig.json",
+    "build:client": "tstl -p ext-ts/client/tsconfig.json",
+    "build:server": "tstl -p ext-ts/server/tsconfig.json",
+    "build:shared": "tstl -p ext-ts/shared/tsconfig.json",
+    "watch": "bun watch.ts",
+    "watch:client": "tstl -p ext-ts/client/tsconfig.json --watch",
+    "watch:server": "tstl -p ext-ts/server/tsconfig.json --watch",
+    "watch:shared": "tstl -p ext-ts/shared/tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@typescript-to-lua/language-extensions": "^1.19.0",
+    "lua-types": "^2.13.1",
+    "typescript-to-lua": "^1.33.0"
+  }
+}
+
