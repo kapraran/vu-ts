@@ -9,7 +9,8 @@
   },
   "tstl": {
     "luaTarget": "5.1",
-    "luaPlugins": [{ "name": "../../tstl-plugin.js" }]
+    "luaPlugins": [{ "name": "./tstl-plugin.js" }]
   },
   "exclude": ["node_modules"]
 }
+

@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../.vu-ts/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../ext/{{folder}}",
     "baseUrl": "."{{#if hasSharedPath}},

@@ -10,7 +10,9 @@ This template provides a structure for Venice Unleashed mods with TypeScript typ
   - Has access to: `shared.d.ts` and `server.d.ts` types
 - **`ext-ts/shared/`** - Shared code (used by both client and server)
   - Has access to: `shared.d.ts` types only
-- **`typings/`** - TypeScript declaration files for Venice Unleashed API
+- **`.vu-ts/typings/`** - TypeScript declaration files for Venice Unleashed API
+- **`.vu-ts/config/`** - TypeScript and build configuration files
+- **`.vu-ts/scripts/`** - Build and watch scripts
 
 ## Type Safety
 

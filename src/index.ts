@@ -191,7 +191,7 @@ async function buildTypes(
     const projectFolder = outputDir
       ? join(resolve(outputDir), modName)
       : join(cwd(), modName);
-    typingsBaseDir = join(projectFolder, "typings");
+    typingsBaseDir = join(projectFolder, ".vu-ts", "typings");
   } else if (outputDir) {
     typingsBaseDir = resolve(outputDir);
   } else {

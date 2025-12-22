@@ -31,3 +31,4 @@ process.on("SIGINT", async () => {
 
 // Wait for all processes (they run indefinitely in watch mode)
 await Promise.all(processes.map((p) => p.exited));
+

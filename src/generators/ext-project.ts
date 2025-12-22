@@ -71,7 +71,10 @@ async function generateExtProject(
   // Create directory structure
   const dirs = [
     TEMPLATE_PROJECT_DIR,
-    join(TEMPLATE_PROJECT_DIR, "typings"),
+    join(TEMPLATE_PROJECT_DIR, ".vu-ts"),
+    join(TEMPLATE_PROJECT_DIR, ".vu-ts", "typings"),
+    join(TEMPLATE_PROJECT_DIR, ".vu-ts", "config"),
+    join(TEMPLATE_PROJECT_DIR, ".vu-ts", "scripts"),
     EXT_TS_DIR,
     join(EXT_TS_DIR, "client"),
     join(EXT_TS_DIR, "server"),
@@ -91,7 +94,7 @@ async function generateExtProject(
 
   // Types are already generated in the project's typings folder by the type generation step
   // Just verify they exist
-  const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, "typings");
+  const templateTypingsDir = join(TEMPLATE_PROJECT_DIR, ".vu-ts", "typings");
   const typingFiles = ["client.d.ts", "server.d.ts", "shared.d.ts"];
   let foundFiles = 0;
   for (const file of typingFiles) {
@@ -106,11 +109,11 @@ async function generateExtProject(
     console.log(`   ✓ TypeScript definition files ready (${foundFiles} files)`);
   }
 
-  // Generate tsconfig.base.json (copy from template, no variables)
-  const baseConfigTemplate = join(templatesDir, "tsconfig.base.json");
+  // Generate config files (copy from template, no variables)
+  const baseConfigTemplate = join(templatesDir, ".vu-ts", "config", "tsconfig.base.json");
   const baseConfigContent = await Bun.file(baseConfigTemplate).text();
   await Bun.write(
-    join(TEMPLATE_PROJECT_DIR, "tsconfig.base.json"),
+    join(TEMPLATE_PROJECT_DIR, ".vu-ts", "config", "tsconfig.base.json"),
     baseConfigContent
   );
 
@@ -170,9 +173,9 @@ async function generateExtProject(
   );
 
   // Generate tstl-plugin.js (copy from template, no variables)
-  const pluginTemplate = join(templatesDir, "tstl-plugin.js");
+  const pluginTemplate = join(templatesDir, ".vu-ts", "config", "tstl-plugin.js");
   const pluginContent = await Bun.file(pluginTemplate).text();
-  await Bun.write(join(TEMPLATE_PROJECT_DIR, "tstl-plugin.js"), pluginContent);
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, ".vu-ts", "config", "tstl-plugin.js"), pluginContent);
   const pluginAction = refresh ? "Refreshed" : "Generated";
   console.log(`   ✓ ${pluginAction} tstl-plugin.js`);
 
@@ -190,9 +193,9 @@ async function generateExtProject(
   await Bun.write(join(TEMPLATE_PROJECT_DIR, "mod.json"), modJsonContent);
 
   // Generate watch.ts (copy from template, no variables)
-  const watchTemplate = join(templatesDir, "watch.ts");
+  const watchTemplate = join(templatesDir, ".vu-ts", "scripts", "watch.ts");
   const watchContent = await Bun.file(watchTemplate).text();
-  await Bun.write(join(TEMPLATE_PROJECT_DIR, "watch.ts"), watchContent);
+  await Bun.write(join(TEMPLATE_PROJECT_DIR, ".vu-ts", "scripts", "watch.ts"), watchContent);
 
   // Generate package.json from template
   const packageName = modName
