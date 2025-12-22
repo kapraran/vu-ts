@@ -102,7 +102,7 @@ bun validate RawClassFile --file "client/**/*.yaml"
 ### Inspect YAML data
 
 ```bash
-bun inspect.js <jsonpath> [--file <glob>] [--type] [--ftype <type>]
+bun scripts/inspect.js <jsonpath> [--file <glob>] [--type] [--ftype <type>]
 ```
 
 ### Managing Custom Events

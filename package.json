@@ -38,7 +38,7 @@
   "scripts": {
     "start": "bun src/cli.ts",
     "dev": "bun --watch src/cli.ts",
-    "validate": "bun validate.js",
+    "validate": "bun scripts/validate.js",
     "infer-schema": "bun scripts/infer-schema.ts",
     "yaml-to-ts": "bun scripts/yaml-to-ts-models.ts"
   },

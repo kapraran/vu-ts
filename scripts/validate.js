@@ -138,3 +138,4 @@ console.log(`\nValidation complete: ${validCount} valid, ${invalidCount} invalid
 if (invalidCount > 0) {
   process.exit(1);
 }
+

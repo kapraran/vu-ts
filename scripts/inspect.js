@@ -79,3 +79,4 @@ const jsonPath = positionals[0] || "$";
 console.log(globPaths, jsonPath);
 
 main(globPaths, jsonPath);
+
