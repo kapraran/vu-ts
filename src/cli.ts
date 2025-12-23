@@ -4,10 +4,8 @@ import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 import {
   executeInitCommand,
-  executeTypesCommand,
   showVersion,
   type InitCommandOptions,
-  type TypesCommandOptions,
 } from "./cli-service";
 import {
   executeEventAddCommand,
@@ -23,6 +21,12 @@ import {
   type NetEventAddCommandOptions,
   type NetEventListCommandOptions,
 } from "./cli-service-netevents";
+import {
+  executeUpdateCommand,
+  executeStatusCommand,
+  type UpdateCommandOptions,
+  type StatusCommandOptions,
+} from "./cli-service-update";
 
 yargs(hideBin(process.argv))
   .scriptName("vu-ts")
@@ -37,10 +41,11 @@ yargs(hideBin(process.argv))
 Examples:
   vu-ts init my-mod              Create a new mod project in ./my-mod
   vu-ts init --output ./mods     Create in custom directory
-  vu-ts types                    Generate types to ./typings
-  vu-ts types --output ./src     Generate types to custom location
   vu-ts init my-mod --force      Create project, overwriting if it exists
   vu-ts init --refresh           Update existing project, preserving code
+  vu-ts update                   Update types and helper files
+  vu-ts update --force           Force update even if up to date
+  vu-ts status                   Show project status and update info
   vu-ts event add --context server --name "MyMod:Event" --param player:Player
   vu-ts event list               List all custom events
 `
@@ -87,29 +92,6 @@ Examples:
         .example("$0 init my-mod --force", "Overwrite if exists");
     },
     (argv) => executeInitCommand(argv as InitCommandOptions)
-  )
-
-  // Types command
-  .command(
-    "types",
-    "Generate/update TypeScript declaration files only",
-    (yargs) => {
-      return yargs
-        .option("output", {
-          alias: "o",
-          describe: "Output directory for type definitions",
-          type: "string",
-          defaultDescription: "./typings",
-        })
-        .option("refresh", {
-          alias: "r",
-          describe: "Update existing types, preserving custom files",
-          type: "boolean",
-        })
-        .example("$0 types", "Generate types to ./typings")
-        .example("$0 types --output ./src", "Generate to custom location");
-    },
-    (argv) => executeTypesCommand(argv as TypesCommandOptions)
   )
 
   // Event command (single entrypoint to avoid yargs command-prefix ambiguity)
@@ -301,6 +283,45 @@ Examples:
         modRoot,
       });
     }
+  )
+
+  // Update command
+  .command(
+    "update [options]",
+    "Update VU-Docs types and helper files",
+    (yargs) => {
+      return yargs
+        .option("force", {
+          alias: "f",
+          describe: "Force update even if already up to date",
+          type: "boolean",
+        })
+        .option("mod-root", {
+          alias: "m",
+          describe: "Mod root directory (default: current directory)",
+          type: "string",
+        })
+        .example("$0 update", "Update to latest VU-Docs")
+        .example("$0 update --force", "Force update even if up to date");
+    },
+    (argv) => executeUpdateCommand(argv as UpdateCommandOptions)
+  )
+
+  // Status command
+  .command(
+    "status [options]",
+    "Show update status and version information",
+    (yargs) => {
+      return yargs
+        .option("mod-root", {
+          alias: "m",
+          describe: "Mod root directory (default: current directory)",
+          type: "string",
+        })
+        .example("$0 status", "Show current project status")
+        .example("$0 status --mod-root ./my-mod", "Show status for specific mod");
+    },
+    (argv) => executeStatusCommand(argv as StatusCommandOptions)
   )
 
   // Global options
