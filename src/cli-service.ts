@@ -3,7 +3,7 @@
  * This module separates CLI logic from the core type generation pipeline
  */
 
-import { main } from "./index";
+import { main } from "./core/type-builder";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 

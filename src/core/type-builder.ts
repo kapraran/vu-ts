@@ -1,83 +1,54 @@
+/**
+ * Core type generation pipeline
+ */
+
 import { Glob } from "bun";
 import { resolve, join } from "path";
 import { mkdirSync, existsSync, rmSync } from "fs";
 import { cwd } from "process";
-import YAML from "yaml";
 import {
   REPO_ZIP_DL_DIR,
   REPO_ZIP_EXTRACT_DIR,
   VU_DOCS_REPO_URL,
-} from "./config";
-import generateClassFile from "./generators/class";
-import generateEnumFile from "./generators/enum";
-import parseClassFile from "./parsers/class";
-import parseEnumFile from "./parsers/enum";
-import parseEventFile from "./parsers/event";
-import parseHookFile from "./parsers/hook";
-import parseLibraryFile from "./parsers/library";
-import { downloadRepo, extractRepo, getLatestCommitHash } from "./repo";
-import eventTransformer from "./transformers/event";
-import hookTransformer from "./transformers/hook";
-import classTransformer from "./transformers/class";
-import { formatCode, saveDeclarationFile } from "./utils";
-import type { RawClassFile } from "./types/generated/RawClassFile";
-import type { RawEnumFile } from "./types/generated/RawEnumFile";
-import type { RawEventFile } from "./types/generated/RawEventFile";
-import type { RawHookFile } from "./types/generated/RawHookFile";
-import type { RawLibraryFile } from "./types/generated/RawLibraryFile";
+} from "../config";
+import { downloadRepo, extractRepo, getLatestCommitHash } from "../repo";
+import { formatCode, saveDeclarationFile } from "../utils";
 import generateExtProject, {
   checkTemplateFolderExists,
   getTemplateFolderPath,
-} from "./generators/ext-project";
+} from "../generators/ext-project";
+import type { RawClassFile } from "../types/generated/RawClassFile";
+import type { RawEnumFile } from "../types/generated/RawEnumFile";
+import type { RawEventFile } from "../types/generated/RawEventFile";
+import type { RawHookFile } from "../types/generated/RawHookFile";
+import type { RawLibraryFile } from "../types/generated/RawLibraryFile";
 
-type typeNamespace = "client" | "server" | "shared" | "fb";
+import type { ParseResult, MainOptions } from "../types";
+import { readYamlData } from "./yaml-reader";
+import { resolveNamespace, resolveRelPath } from "./namespace-resolver";
+import { pipelineMap } from "./pipeline";
 
-export type ParseResult<T extends unknown> = {
-  filePath: string;
-  type: string;
-  namespace: typeNamespace;
-  result: T;
-};
-
-async function readYamlData(filePath: string) {
-  const contents = await Bun.file(filePath).text();
-  return YAML.parse(contents);
-}
-
-const pipelineMap = {
-  event: { parser: parseEventFile, transformer: eventTransformer },
-  hook: { parser: parseHookFile, transformer: hookTransformer },
-  library: { parser: parseLibraryFile, generator: generateClassFile },
-  enum: { parser: parseEnumFile, generator: generateEnumFile },
-  class: {
-    parser: parseClassFile,
-    transformer: classTransformer,
-    generator: generateClassFile,
-  },
-};
-
-export interface MainOptions {
-  outputDir?: string;
-  generateTemplate?: boolean;
-  modName?: string;
-  rm?: boolean;
-  refresh?: boolean;
-}
-
-async function buildTypes(
+/**
+ * Core type generation pipeline that processes YAML files and generates TypeScript declarations
+ * @param docsDir - Directory where VU-Docs repository is extracted
+ * @param outputDir - Optional custom output directory
+ * @param generateTemplate - Whether to generate a complete mod template
+ * @param templateTypingsDir - Directory for template typings (optional)
+ * @param modName - Name of the mod (required when generating templates)
+ */
+export async function buildTypes(
   docsDir: string,
   outputDir?: string,
   generateTemplate?: boolean,
   templateTypingsDir?: string,
   modName?: string
-) {
+): Promise<void> {
   const parseResults = new Map<string, ParseResult<any>>();
 
   // Construct the path to the types directory from docsDir
   // docsDir is the extraction directory, which contains VU-Docs-master/types/
   const pathPrefix = join(docsDir, "VU-Docs-master", "types");
 
-  // const globPaths = ["*/type/*.yaml", "*/event/*.yaml", "*/library/*.yaml"];
   const globPaths = ["**/*.yaml"];
 
   const filePaths = globPaths.flatMap((globPath) => {
@@ -89,7 +60,7 @@ async function buildTypes(
 
   console.log(`   Parsing ${filePaths.length} YAML files...`);
 
-  // parsing step
+  // Parsing step: Read and parse all YAML files
   for (const filePath of filePaths) {
     const yamlData = await readYamlData(filePath);
 
@@ -125,7 +96,7 @@ async function buildTypes(
     }
 
     const { parser } = pipeline;
-    const parseResult = parser(rawData);
+    const parseResult = parser(rawData as any);
 
     const result = {
       filePath: filePath,
@@ -137,7 +108,7 @@ async function buildTypes(
     parseResults.set(resolveRelPath(filePath), result);
   }
 
-  // create different maps per namespace
+  // Create different maps per namespace
   const declarations = {
     client: ["client", "fb", "shared"],
     server: ["server", "fb", "shared"],
@@ -161,7 +132,7 @@ async function buildTypes(
     };
   }, {});
 
-  // transforming step - apply to symbol maps so changes are visible to generators
+  // Transforming step - apply to symbol maps so changes are visible to generators
   Object.entries(declarations).forEach(([ctx, ns]) => {
     const symbolMap = symbolMaps[ctx];
     for (const [key, parseResult] of symbolMap.entries()) {
@@ -175,14 +146,7 @@ async function buildTypes(
     }
   });
 
-  // console.log(symbolMaps);
-
-  // console.log(
-  //   symbolMaps.client.get("shared\\library\\Events.yaml")!.result.methods[10]
-  //     .params
-  // );
-
-  // declarations generation step
+  // Declaration generation step
   // When generating a template, types go directly to the project's typings folder
   // Otherwise, types go to the specified outputDir or default location
   let typingsBaseDir: string;
@@ -203,6 +167,7 @@ async function buildTypes(
     mkdirSync(typingsBaseDir, { recursive: true });
   }
 
+  // Generate declaration files for each context (client, server, shared)
   for (const [ctx, symbolMap] of Object.entries(symbolMaps)) {
     const allCode: string[] = [];
     for (const key of symbolMap.keys()) {
@@ -214,15 +179,7 @@ async function buildTypes(
       const { generator } = pipeline;
       const code = generator(parseResult.result);
 
-      // console.log(formatCode(code));
       allCode.push(formatCode(code));
-
-      // const matches = parseResult.filePath.match(
-      //   /VU-Docs-master\\types\\(.*)\.yaml$/i
-      // );
-      // const relPath = matches![1];
-      // const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
-      // await saveDeclarationFile(fullPath, code);
     }
 
     const fullPath = resolve(typingsBaseDir, `${ctx}.d.ts`);
@@ -232,7 +189,7 @@ async function buildTypes(
     if (ctx === "shared") {
       const patchPath = resolve(
         import.meta.dir || __dirname,
-        "./patches/shared.d.ts"
+        "../patches/shared.d.ts"
       );
       const patchContent = await Bun.file(patchPath).text();
       finalCode = patchContent + "\n\n" + finalCode;
@@ -244,19 +201,13 @@ async function buildTypes(
       : `typings/${ctx}.d.ts`;
     console.log(`   ✓ Generated ${relativePath}`);
   }
-
-  // console.log(parseResults);
-
-  // results.forEach(async (result) => {
-  //   const matches = result.path.match(/VU-Docs-master\\types\\(.*)\.yaml$/i);
-  //   const relPath = matches![1];
-  //   const fullPath = resolve(__dirname, `../typings/${relPath}.d.ts`);
-
-  //   await saveDeclarationFile(fullPath, result.source);
-  // });
 }
 
-export async function main(options: MainOptions = {}) {
+/**
+ * Main entry point for type generation
+ * @param options - Configuration options
+ */
+export async function main(options: MainOptions = {}): Promise<void> {
   const {
     outputDir,
     generateTemplate = false,
@@ -267,9 +218,6 @@ export async function main(options: MainOptions = {}) {
 
   // Pre-flight check: if generating template, validate project folder doesn't exist
   if (generateTemplate && modName && !refresh && !rm) {
-    const { checkTemplateFolderExists } = await import(
-      "./generators/ext-project"
-    );
     if (checkTemplateFolderExists(modName, outputDir)) {
       const folderPath = outputDir ? `${outputDir}/${modName}` : modName;
       throw new Error(
@@ -338,7 +286,7 @@ export async function main(options: MainOptions = {}) {
   await extractRepo(REPO_ZIP_DL_DIR, REPO_ZIP_EXTRACT_DIR, commitHash);
 
   // For template generation, types will be generated by the generateExtProject function
-  // Don't pre-cculate templateTypingsDir here to avoid creating the parent folder prematurely
+  // Don't pre-calculate templateTypingsDir here to avoid creating the parent folder prematurely
   let templateTypingsDir: string | undefined;
 
   console.log("\n🔨 Generating type definitions...");
@@ -357,15 +305,4 @@ export async function main(options: MainOptions = {}) {
   }
 
   console.log("\n✅ Done!");
-}
-function resolveNamespace(filePath: string): typeNamespace {
-  // Handle both Windows (\) and Unix (/) path separators
-  if (filePath.match(/VU-Docs-master[\\/]types[\\/]client/i)) return "client";
-  if (filePath.match(/VU-Docs-master[\\/]types[\\/]server/i)) return "server";
-  if (filePath.match(/VU-Docs-master[\\/]types[\\/]fb/i)) return "fb";
-  return "shared";
-}
-function resolveRelPath(filePath: string): string {
-  // Handle both Windows (\) and Unix (/) path separators
-  return filePath.replace(/^.*[\\/]VU-Docs-master[\\/]types[\\/]/i, "");
 }
