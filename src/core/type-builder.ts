@@ -27,6 +27,7 @@ import type { ParseResult, MainOptions } from "../types";
 import { readYamlData } from "./yaml-reader";
 import { resolveNamespace, resolveRelPath } from "./namespace-resolver";
 import { pipelineMap } from "./pipeline";
+import { ProgressTracker, status, success } from "./progress";
 
 /**
  * Core type generation pipeline that processes YAML files and generates TypeScript declarations
@@ -58,14 +59,22 @@ export async function buildTypes(
     );
   });
 
-  console.log(`   Parsing ${filePaths.length} YAML files...`);
+  // Parsing step: Read and parse all YAML files with progress tracking
+  status(`📝 Parsing ${filePaths.length} YAML files...`);
+  const parseProgress = new ProgressTracker({
+    total: filePaths.length,
+    updateEvery: filePaths.length > 500 ? 50 : 100,
+    showSpinner: true,
+  });
 
-  // Parsing step: Read and parse all YAML files
   for (const filePath of filePaths) {
     const yamlData = await readYamlData(filePath);
 
     const pipeline = pipelineMap[yamlData.type];
-    if (pipeline === undefined) continue;
+    if (pipeline === undefined) {
+      parseProgress.increment();
+      continue;
+    }
 
     // Type-check: Cast YAML data to appropriate Raw*File type
     // The parsers will handle the actual transformation
@@ -92,6 +101,7 @@ export async function buildTypes(
         rawData = yamlData as RawLibraryFile;
         break;
       default:
+        parseProgress.increment();
         continue;
     }
 
@@ -106,7 +116,12 @@ export async function buildTypes(
     } as ParseResult<any>;
 
     parseResults.set(resolveRelPath(filePath), result);
+    parseProgress.increment();
   }
+
+  parseProgress.finish(
+    `   ✓ Parsed ${filePaths.length} YAML files successfully`
+  );
 
   // Create different maps per namespace
   const declarations = {
@@ -133,6 +148,8 @@ export async function buildTypes(
   }, {});
 
   // Transforming step - apply to symbol maps so changes are visible to generators
+  status("🔄 Transforming parsed data for contexts...");
+  let transformCount = 0;
   Object.entries(declarations).forEach(([ctx, ns]) => {
     const symbolMap = symbolMaps[ctx];
     for (const [key, parseResult] of symbolMap.entries()) {
@@ -143,8 +160,10 @@ export async function buildTypes(
 
       const { transformer } = pipeline;
       transformer(parseResult, ctx, symbolMaps);
+      transformCount++;
     }
   });
+  success(`   Transformed ${transformCount} items for 3 contexts`);
 
   // Declaration generation step
   // When generating a template, types go directly to the project's typings folder
@@ -168,8 +187,20 @@ export async function buildTypes(
   }
 
   // Generate declaration files for each context (client, server, shared)
-  for (const [ctx, symbolMap] of Object.entries(symbolMaps)) {
+  status("📝 Generating TypeScript declaration files...");
+  const contexts = Object.entries(symbolMaps);
+  let totalGenerated = 0;
+
+  for (const [ctx, symbolMap] of contexts) {
     const allCode: string[] = [];
+    const itemCount = symbolMap.size;
+    const genProgress = new ProgressTracker({
+      total: itemCount,
+      updateEvery: Math.max(10, Math.floor(itemCount / 10)),
+      showSpinner: false,
+      format: `   └─ ${ctx}: {current}/{total} files`,
+    });
+
     for (const key of symbolMap.keys()) {
       const parseResult = symbolMap.get(key)!;
 
@@ -180,6 +211,8 @@ export async function buildTypes(
       const code = generator(parseResult.result);
 
       allCode.push(formatCode(code));
+      genProgress.increment();
+      totalGenerated++;
     }
 
     const fullPath = resolve(typingsBaseDir, `${ctx}.d.ts`);
@@ -199,8 +232,13 @@ export async function buildTypes(
     const relativePath = outputDir
       ? `${outputDir}/${ctx}.d.ts`
       : `typings/${ctx}.d.ts`;
-    console.log(`   ✓ Generated ${relativePath}`);
+    success(`Generated ${relativePath}`);
   }
+
+  // Summary
+  console.log(
+    `   ✓ Generated ${contexts.length} declaration files (${totalGenerated} total items)`
+  );
 }
 
 /**
