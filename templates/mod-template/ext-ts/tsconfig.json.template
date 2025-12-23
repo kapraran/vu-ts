@@ -7,6 +7,6 @@
       "@shared/*": ["../shared/*"]
     }{{/if}}
   },
-  "include": ["./**/*", "./types.d.ts"]
+  "include": ["./**/*", "./types.d.ts"]{{#if isClientOrServer}},
+  "exclude": ["../shared/**/*"]{{/if}}
 }
-

@@ -1,16 +1,26 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["ESNext"],
-    "types": ["@typescript-to-lua/language-extensions", "lua-types/5.1"],
+    "lib": [
+      "ESNext"
+    ],
+    "types": [
+      "@typescript-to-lua/language-extensions",
+      "lua-types/5.1"
+    ],
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true
   },
   "tstl": {
     "luaTarget": "5.1",
-    "luaPlugins": [{ "name": "./tstl-plugin.js" }]
+    "luaPlugins": [
+      {
+        "name": "../../.vu-ts/config/tstl-plugin.js"
+      }
+    ]
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
-
