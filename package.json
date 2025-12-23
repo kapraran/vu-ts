@@ -1,6 +1,6 @@
 {
   "name": "@kapraran/vu-ts",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A TypeScript declaration file generator for VU-Docs. Generates TypeScript types from YAML documentation files.",
   "keywords": [
     "vu",
