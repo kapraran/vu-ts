@@ -159,6 +159,11 @@ const plugin = {
 
           // Normalize the module name for matching
           const normalizedModuleName = moduleName.replace(/\\/g, "/");
+          // Also normalize dots to slashes for matching (shared.types.WorldLootTypes -> shared/types/WorldLootTypes)
+          const moduleNameWithSlashes = normalizedModuleName.replace(
+            /\./g,
+            "/"
+          );
 
           // Check if this module is in shared
           // Try multiple matching strategies
@@ -178,7 +183,10 @@ const plugin = {
                 normalizedModuleName === moduleInfo.name ||
                 normalizedModuleName.endsWith("/" + moduleInfo.name) ||
                 normalizedModuleName === moduleInfo.fullPath ||
-                normalizedModuleName.endsWith("/" + moduleInfo.fullPath)
+                normalizedModuleName.endsWith("/" + moduleInfo.fullPath) ||
+                // Also check with dots converted to slashes
+                moduleNameWithSlashes === moduleInfo.fullPath ||
+                moduleNameWithSlashes.endsWith("/" + moduleInfo.fullPath)
               ) {
                 matchedModule = moduleInfo;
                 break;
@@ -189,7 +197,10 @@ const plugin = {
           // Strategy 3: Check if it contains the shared path
           if (!matchedModule) {
             for (const [key, moduleInfo] of sharedModules.entries()) {
-              if (normalizedModuleName.includes(moduleInfo.fullPath)) {
+              if (
+                normalizedModuleName.includes(moduleInfo.fullPath) ||
+                moduleNameWithSlashes.includes(moduleInfo.fullPath)
+              ) {
                 matchedModule = moduleInfo;
                 break;
               }
@@ -201,6 +212,22 @@ const plugin = {
               'require("__shared/' + matchedModule.fullPath + '")';
             console.log(
               "[TSTL Plugin] Transforming require:",
+              moduleName,
+              "->",
+              transformed
+            );
+            return transformed;
+          }
+
+          // For non-shared modules, convert dots to slashes for Lua require
+          // But only if it contains dots (to avoid transforming already-correct paths)
+          if (
+            normalizedModuleName !== moduleNameWithSlashes &&
+            moduleNameWithSlashes !== normalizedModuleName
+          ) {
+            const transformed = 'require("' + moduleNameWithSlashes + '")';
+            console.log(
+              "[TSTL Plugin] Converting dots to slashes:",
               moduleName,
               "->",
               transformed
@@ -283,7 +310,10 @@ const plugin = {
 
     if (!sharedDir) {
       // Return default resolution
-      return loader(moduleName, containingFile, options);
+      if (typeof loader === "function") {
+        return loader(moduleName, containingFile, options);
+      }
+      return undefined;
     }
 
     // Normalize module name
@@ -358,7 +388,11 @@ const plugin = {
     }
 
     // Return default resolution for non-shared modules
-    return loader(moduleName, containingFile, options);
+    if (typeof loader === "function") {
+      return loader(moduleName, containingFile, options);
+    }
+    // Fallback for older TSTL versions
+    return undefined;
   },
 };
 
