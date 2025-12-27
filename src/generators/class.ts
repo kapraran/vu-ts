@@ -36,12 +36,14 @@ function generateReturnsCode(m: MethodType) {
       // Handle array types - use vector<T> instead of T[]
       if (r.array) {
         const vectorType = `vector<${baseType}${nullable}>`;
-        return (r as ReturnType).table ? `LuaTable<${vectorType}>` : vectorType;
+        return (r as ReturnType).table
+          ? `LuaTable<any, ${vectorType}>`
+          : vectorType;
       }
 
       // Handle non-array types
       const typeStr = `${baseType}${nullable}`;
-      return (r as ReturnType).table ? `LuaTable<${typeStr}>` : typeStr;
+      return (r as ReturnType).table ? `LuaTable<any, ${typeStr}>` : typeStr;
     })
     .join(", ");
 

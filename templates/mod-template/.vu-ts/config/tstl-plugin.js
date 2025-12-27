@@ -195,17 +195,17 @@ const plugin = {
           }
 
           // Strategy 3: Check if it contains the shared path
-          if (!matchedModule) {
-            for (const [key, moduleInfo] of sharedModules.entries()) {
-              if (
-                normalizedModuleName.includes(moduleInfo.fullPath) ||
-                moduleNameWithSlashes.includes(moduleInfo.fullPath)
-              ) {
-                matchedModule = moduleInfo;
-                break;
-              }
-            }
-          }
+          // if (!matchedModule) {
+          //   for (const [key, moduleInfo] of sharedModules.entries()) {
+          //     if (
+          //       normalizedModuleName.includes(moduleInfo.fullPath) ||
+          //       moduleNameWithSlashes.includes(moduleInfo.fullPath)
+          //     ) {
+          //       matchedModule = moduleInfo;
+          //       break;
+          //     }
+          //   }
+          // }
 
           if (matchedModule) {
             const transformed =
